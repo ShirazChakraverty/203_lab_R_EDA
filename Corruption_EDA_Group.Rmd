@@ -43,6 +43,9 @@ First, we load the car library, which gives us a convenient scatterplotMatrix fu
 
 ```{r car}
 library(car)
+install.packages("Hmisc")
+library("Hmisc")
+
 ```
 
 
@@ -56,7 +59,7 @@ load("Corrupt.Rdata")
 We observe that we have `r nrow(FMcorrupt)` observations and `r length(colnames(FMcorrupt))` variables.
 
 ```{r shape}
-nrow(FMcorrupt)
+dim(FMcorrupt)
 str(FMcorrupt)
 ```
 
@@ -64,10 +67,68 @@ We looked at the total number of violations and found that the violations could 
 
 Looking at the diplomat variable, i.e., staff, we notice that diplomat numbers stay between `r format(round(min(FMcorrupt$staff, na.rm=TRUE), 2))` and `r format(round(max(FMcorrupt$staff, na.rm=TRUE), 2))` 
 
+The column'prepost' plays a key role in the defintion of the dataset and identifies whether the data is prior or post to the parking enforcement implemented in 2002. This dataset appears to be in the form of Panel or Longitudinal Data. It has both cross-sectional (Data around corruptions , violations etc) and a time series (pre vs post) dimension.
+
 ```{r violations_range}
 summary(FMcorrupt$violations)
 summary(FMcorrupt$staff)
 ```
+
+## Data Quality
+
+```{r shape}
+head(FMcorrupt)
+tail(FMcorrupt)
+nrow(FMcorrupt[FMcorrupt$prepost=='',])
+```
+
+There are 62 rows that have empty string for prepost and the associated data for the other columns for these rows are 'NA' , the only column that has value for these are 'wbcode'. It is possible that the data is not either observerd or entered into the data set. These rows do not provide any meaningful information and do not add any additional value to the analysis and it can be safely removed.
+
+
+## Uni variate Analysis for key variables
+
+
+1. violations
+
+```{r shape}
+summary(FMcorrupt$violations)
+describe(FMcorrupt$violations)
+```
+
+It appears that 3/4th of dataset habe the violations that is less than 51.9 and where as 95% of the rows have value less than or equal to 640.8 with the maximum value being 3392.9. The distribution seems to be skewed to the right. Let us do the boxplot and see the outliers clearly.
+
+
+```{r shape}
+boxplot(FMcorrupt$violations)
+boxplot(log(FMcorrupt$violations))
+```
+
+It is very clear from the boxplot that majority of the values are below the value 51.9 , transforming the violations to the log scale gives a better picture.
+
+```{r shape}
+hist((FMcorrupt$violations)) 
+hist(log(FMcorrupt$violations))
+```
+
+
+
+2. prepost
+
+```{r shape}
+pre <- FMcorrupt[FMcorrupt$prepost =='pre',]
+pos <- FMcorrupt[FMcorrupt$prepost =='pos',]
+```
+
+Let's divide the data into two set and analyse the key variable 'violations'
+
+
+```{r shape}
+describe(pre$violations)
+describe(pos$violations)
+```
+
+It is very interesting to the see mean value drop from 198.1 to 3.688 indicating such a huge change in the behaviour of diplomats since the enforcement of legal penalties and removing the immunity.
+
 
 ## (a) Was there a relationship between corruption and parking violations?  
 
@@ -121,6 +182,63 @@ cor_below
 cor_above = cor(FM_subcases_above_zero$corruption, FM_subcases_above_zero$violations, use ='complete.obs')
 cor_above
 ```
+
+
+## (b) Does religion have a role in the behaviour and violations
+
+```{r}
+scatterplot( log(violations) ~ pctmuslim       , data=FMcorrupt, 
+  	ylab="Corruption", xlab="% Muslim", 
+   main="Enhanced Scatter Plot" 
+   )
+
+cor(FMcorrupt$violations,FMcorrupt$pctmuslim,use="complete.obs")
+
+```
+
+This plot shows that there is not much  relationship between the religion and the behaviour (violations) , there are too many observations with the % muslim close to 0 and as well as 1. So the violations cannot be directly related %muslim.
+
+## (b) Does number of cars  have a role in the behaviour and violations
+
+
+```{r}
+scatterplot( log(violations) ~ cars_total       , data=FMcorrupt, 
+  	ylab="Corruption", xlab="# of Cars", 
+   main="Enhanced Scatter Plot" 
+   )
+
+cor(FMcorrupt$violations,FMcorrupt$cars_total,use="complete.obs")
+
+```
+## Behaviour based on the continets
+
+```{r}
+africa <- FMcorrupt[FMcorrupt$r_africa ==1 & !is.na(FMcorrupt$r_africa),]
+nrow(africa)/2
+
+asia <- FMcorrupt[FMcorrupt$r_asia ==1 & !is.na(FMcorrupt$r_asia),]
+nrow(asia)/2
+
+europe <- FMcorrupt[FMcorrupt$r_europe ==1 & !is.na(FMcorrupt$r_europe),]
+nrow(europe)/2
+
+southamerica <- FMcorrupt[FMcorrupt$r_southamerica ==1 & !is.na(FMcorrupt$r_southamerica),]
+nrow(southamerica)/2
+
+
+middleeast <- FMcorrupt[FMcorrupt$r_middleeast ==1 & !is.na(FMcorrupt$r_middleeast),]
+nrow(middleeast)/2
+
+describe(africa$violations)
+describe(asia$violations)
+describe(europe$violations)
+describe(southamerica$violations)
+describe(middleeast$violations)
+
+```
+
+
+
 
 ### Results
 
