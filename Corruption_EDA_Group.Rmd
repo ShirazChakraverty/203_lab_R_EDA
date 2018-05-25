@@ -2,110 +2,557 @@
 title: "An Exploratory Analysis of Corruption and Parking Violations"
 author: "Kenneth Chen, Shiraz Chakraverty, Praba Santhanakrishnan"
 date: "May 28, 2018"
-output:
-  word_document: default
-  html_document:
-    df_print: paged
+output: 
   pdf_document: default
+  df_print: paged
+  fig_width: 3
+  fig_height: 3
+  fig_caption: yes
+  toc: yes
+  include_graphics: yes
 ---
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
+knitr::opts_chunk$set(echo = TRUE,fig.width=4, fig.height=3)
 
-## Introduction
-
-__Background__
-Imagine that you have been hired by the World Bank to study the eect of cultural norms and legal enforcement in controlling corruption by analyzing the parking behavior of United Nations officials in Manhattan. Until 2002, diplomatic immunity protected UN diplomats from parking enforcement actions, so diplomats actions were constrained by cultural norms alone. In 2002, enforcement authorities acquired the right to confiscate diplomatic license plates of violators, after which diplomatic behavior was constrained by both cultural norms and the legal penalties of unpaid tickets.
-
-__Data__
-You are given a dataset for a selection of UN diplomatic missions, Corrupt.R. The dependent (or target) variable in this data is named violations. The labels of some of the variables are listed below; the rest of the variables should be self-explanatory.
-
-corruption: Country corruption index, 1998  
-violations: Unpaid New York City parking violations  
-trade: total trade with the United States (1998 US$)  
-
-__Objective__
-The World Bank would like to know what if any relationship there is between corruption and parking violations both pre and post 2002 and if there are any other relevant explanatory variables.
-
-(a) Was there a relationship between corruption and parking violations?  
-(b) How does the number of diplomats contribute to the frequency of violations?  
-(c) Did World Trade Center attack on September 11, 2001 have any impact on the parking violations in Manhattan NY?  
-(d) 
-
-
-# Data Exploration
-
-Our team, Kenneth Chen, Shiraz, Praba Santhanakrishnan from W203, will address this question using exploratory data analysis (EDA) techniques. Our data is composed of the number of parking violations, number of diplomats from countries all over the world, individual country corruption index so on and so forth. We are interested in investigating the correlation between parking violations and the corruption of the diplomat countries. How is corruption relevant to the frequency of the parking violations happened in Manhattan NY before and after the year 2002. The year '2002' was intuitively chosen to reflect the World Trade Center attack on September 11, 2001. 
-
-## Setup
-
-First, we load the car library, which gives us a convenient scatterplotMatrix function.
-
-```{r car}
+# Load R library packages, R Studio would first need to have these packages installed.
 library(car)
-install.packages("Hmisc")
-library("Hmisc")
-
+library(Hmisc)
+library(tidyverse)
+library(dbplyr)
+library(knitr)
+library(corrr)
+library(ggplot2)
+library(tinytex)
 ```
+
+
+
+# Introduction
+
+In this lab assignment, we have access to a unique social experiment to understand relationships between culture and corruption. We define these concepts here and then provide the operational definition to guide our measurements. Our goal is to perform basic exploratory data analysis, based on the following constructs,   
+
+*1. Every region and country has some form of corruption, a prevailing diplomatic relationship with the UN and by extention, The United States.*
+
+*2 Diplomatic attitudes are tuned into the following:*  
+
+   *+ Economic development of nation.*  
+   
+   *+ Current world events, how they effect their nation.*  
+   
+   *+ Level of crime in nation*  
+   
+   *+ Population of nation, per capita income and crime index.*  
+   
+
+*3. The Clinton-Schumer amendment of October 2002 happens about 13 months after WTC terrorist attacks. This change is visible in the dataset as pre and post records,gives a numerical measure of effects of enforcement.*
+
+We are motivated to identify strong relationships between various factors (independent variables) and voilations (dependent variable).Ultimately the construct we want to evaluate is the effect of diplomatic culture, aid and economic metrics, population, corruption and parking violations. We would like to explore relationships there variables have to one another and draw some observations based on them
+
+## R Environment Setup
+
+The following packages are required prior to running this project in your Rstudio environment, by running installed.packages() at your R console, you can confirm your list of packages.* 
+
+*To install the following packages, simply run install.packages('pachage-name')*
+
+* List of Packages
+  + car - Companion to Applied Regression
+  + Hmisc - Harrell Miscellaneous
+  + tinytex - To build pdf renders using knit
+  + tidyverse - To perform more advanced data transformations
+  + corrr - Performing Correlation in R
+  + knitr - For R markdown tables, graphs and rendering features.
+  + ggplot2 - For advanced features for descriptive graphs (line, box, dot,etc)
+
+All packages are documented Here : <Link : <https://cran.r-project.org/web/packages/>
+
+  
+## The Dataset (Summary View)
+
+This section describes the dataset, variable types, number of observations, schema, dimensions. We also delve into data quality, issues, handling of issues we found. Finally we address data processing and preparation.
 
 
 ```{r loading}
-# Load the data 
+# Load the data
 load("Corrupt.Rdata")
+df_un = data.frame(FMcorrupt)
+
+# Convert to tidyverse object, tibble for additional sql style functionality
+tb_un = dplyr::as_tibble(df_un)
 ```
 
-## Data Selection
 
-We observe that we have `r nrow(FMcorrupt)` observations and `r length(colnames(FMcorrupt))` variables.
+### Dataset size, shape, data gaps, schema and features
 
-```{r shape}
-dim(FMcorrupt)
-str(FMcorrupt)
+ + Dataset has `r nrow(tb_un)` rows and `r ncol(tb_un)` columns.   
+ + Shape dimensions are (`r dim(tb_un)`).   
+ + Data gaps : blanks(Na represents a blank) ranging from 33 to 180.  
+ + Schema and features:
+
+```{r}
+# Show to dimensions ( rows x columns ) of dataset
+dim(tb_un)
+
+# Show summary statistics of all fields(variables) in table
+str(tb_un)
 ```
 
-We looked at the total number of violations and found that the violations could be as low as `r format(round(min(FMcorrupt$violations, na.rm=TRUE), 2))` and could also go as frequent as `r format(round(max(FMcorrupt$violations, na.rm=TRUE), 2))`. This shows a wide discrepancy in violations, from which we could gather some insightful information regarding other factors such as corruption index and the number of diplomats visits to the US. 
+The data table is composed of the following variables ( variables are fields):  
 
-Looking at the diplomat variable, i.e., staff, we notice that diplomat numbers stay between `r format(round(min(FMcorrupt$staff, na.rm=TRUE), 2))` and `r format(round(max(FMcorrupt$staff, na.rm=TRUE), 2))` 
+* Volume of parking violations : Maximum number at 3393, average of 100.
+* Total number of diplomats(from each country) : MAximum 86, average of 11.
+* Individual country corruption index : -2.5 to a maximum of 1.5
+* Fines computed in USD: Maximum of 186163, average of 5579 USD.
+* Government wages index : 180 NA records, over 35% of dataset is blank, we have to drop this field from analysis.
+* Trade with the US: 
+* Breakdown of Vehicles : official, personal and total
+* Population of Country (as of 1998)
+* GDP of country (as of 1998)
+* Aid to country : military, economic and total US aid
+* Country corruption index
+* Continent identification : five variables marking each countries geographical location
+* Name of the country and country code
+* Proportion of Muslim population
 
-The column'prepost' plays a key role in the defintion of the dataset and identifies whether the data is prior or post to the parking enforcement implemented in 2002. This dataset appears to be in the form of Panel or Longitudinal Data. It has both cross-sectional (Data around corruptions , violations etc) and a time series (pre vs post) dimension.
 
-```{r violations_range}
-summary(FMcorrupt$violations)
-summary(FMcorrupt$staff)
+### Data quality issues
+
+This section shows the quality of the records, issues we found and steps we took to prepare it for exploratory data analysis.
+
+```{r echo=FALSE, results = 'asis'}
+# filter for the four columns that have a lot of NA values, for cars and diplomat wage index
+tb_view_na = select(filter_all(tb_un,any_vars(is.na(.))),wbcode,prepost,corruption, violations,gdppcus1998,totaid,gov_wage_gdp,cars_personal,cars_mission, cars_total)
+
+# create a nicely formatted markdown table, the matrix slicing shows the first 10 rows for cars and diplomat wage blanks.
+kable(head(tb_view_na[1:10,]), caption = "Rows with blank columns values")
 ```
 
-## Data Quality
+The above table shows us top 10 rows of `r nrow(tb_view_na)`, where columns are blank. However we notice that we can still filter some of these out by vertical slicing.
 
-```{r shape}
-head(FMcorrupt)
-tail(FMcorrupt)
-nrow(FMcorrupt[FMcorrupt$prepost=='',])
+```{r echo=FALSE, results = 'asis'}
+# [Vertical slicing 1st pass] Update the base tibble by removing the columns for diplomat wage index and cars data.
+tb_un_clean = dplyr::select(tb_un,-gov_wage_gdp,-cars_personal,-cars_mission, -cars_total )
+
+# filter from rows with no violation data and store them for a view tibble
+bad_data_vl = dplyr::filter(tb_un_clean, is.na(violations))
+
+# filter for rows with no pre/post tagging and store them for a view tibble
+bad_data_pp = dplyr::filter(tb_un_clean, prepost == "")
+
+# create a nicely formatted markdown table, the matrix slicing shows the first 10 rows for the first seven columns.
+kable(head(bad_data_pp[1:10,1:7]), caption = "Rows with blank pre/post tagging")
+
+# create a nicely formatted markdown table, the matrix slicing shows the first 10 rows for the first seven columns.
+kable(head(bad_data_vl[1:10,1:7]), caption = "Rows with blank violations")
+
+```
+```{r echo=FALSE, results = 'asis'}
+# [Horizontal slicing 2nd pass]update the base tibble by removing the rows where violations is empty.
+tb_un_clean = dplyr::select(filter(tb_un_clean, prepost != ""),everything())
+
+# [Horizontal slicing 3rd pass] Update the base tibble by removing rows with prepost blank.
+tb_un_clean = dplyr::select(filter(tb_un_clean, !is.na(violations)),everything())
+
+# create a view only tibble to validate post processing status of all rows that have NA in at least 1 column
+tb_view_na = select(filter_all(tb_un_clean,any_vars(is.na(.))),wbcode,prepost,corruption, violations,gdppcus1998,totaid)
+
+# create a nicely formatted markdown table, the matrix slicing shows the first 10 rows for cars and diplomat wage blanks.
+kable(head(tb_view_na[1:10,]), caption = "Rows with blank columns values post processing")
 ```
 
-There are 62 rows that have empty string for prepost and the associated data for the other columns for these rows are 'NA' , the only column that has value for these are 'wbcode'. It is possible that the data is not either observerd or entered into the data set. These rows do not provide any meaningful information and do not add any additional value to the analysis and it can be safely removed.
 
 
-## Uni variate Analysis for key variables
+The above tables shows us  a total of `r nrow(tb_view_na)` rows with scattered NA values which we can still utilize as the main variables we are interested in are still intact.
+
+
+~~There are 66 rows that have empty string for prepost and the associated data for the other columns for these rows are 'NA' , the only column that has value for these are 'wbcode'. It is possible that the data is not either observerd or entered into the data set. These rows do not provide any meaningful information and do not add any additional value to the analysis and it can be safely removed.~~
+
+### Summary of data processing and preparation
+
+We performed the following modifications to make the data more uniform. Here are the changes,
+
+*1. Removed the 62 rows above where prepost is blank.*
+
+*2. Removed the 4 rows where violations are blank, without this data, the record is not useful for our analysis.*
+
+*3. Calculate average violations per nation to perform average analysis per diplomat.*  
+
+*4. Calculate revised trade in millions, population in millions as aid is presented in millions, this steps makes the unit for these to be the same.*  
+
+*5. Vertical slicing of cars data and diplomat wage index due to excessive blanks.*
+
+
+```{r echo=FALSE, results = 'asis'}
+
+# Create calculated fields using tidyverse functions, round floats.
+tb_un_revised = dplyr::select(mutate(tb_un_clean, corruption = round(corruption,2), avg_viols = round((violations / staff),0), trade_mil = round((trade/1000000),0), pop_mil = round((pop1998/1000000),0),gdp_1000s = round((gdppcus1998/1000),2)),everything())
+
+# Create a base tibble with all analysis fields
+computed = select(tb_un_revised,country,region,prepost,corruption,totaid,ecaid,milaid,avg_viols,trade_mil,pop_mil,gdp_1000s)
+
+#Create a table view only tibble to show the computed fields with country reference.
+tib_view = dplyr::select(computed,country,corruption,avg_viols,totaid,ecaid,trade_mil,pop_mil,gdp_1000s)
+
+# create a nicely formatted markdown table, show first 10 rows and all columns
+kable(head(tib_view[1:10,]), caption = "Sample of revised fields")
+
+# test dataset for any further na values
+
+kable(filter_all(tib_view,any_vars(is.na(.))), caption = "Rows with NA values")
+```
+
+
+
+
+## Univariate Analysis for key variables
+
+Here we review at a glance some key descriptive features of all the variables we have been provided.
+
+1. Country and Country code. Here we also talk about the regions and boolean flags for each major region. Our goal is to view the depth of the dataset here. Hence we compute a grouped view of countries by region.
+
+At a glance we observe the regions as following: 
+
+1 Caribbean Islands
+2 south_americas
+3 Europe
+4 asia
+5 Australia
+6 Africa
+7 middle east
+
+Each of these continents have a boolean variable : Africa, Middle East, South America, Asia.
+
+```{r echo=FALSE, results = 'asis', fig.align= 'center', fig.height= 4, fig.width= 8}
+
+#compute the number of countries by region. This is visually more useful.
+
+country_base <- tb_un_clean %>%
+  group_by(region) %>%
+  summarise(counts = n())
+# Remove any NA rows
+
+country_base = select(filter(country_base,!is.na(region)),everything())
+
+# Make regions more readable
+
+regions = c("Isls","S Amer","Eur","Asia","Aust","Afr","MidE")
+
+country_base$regions = regions
+
+# Create a bar plot to show the grouped total of countries by continental region.
+ggplot(country_base, aes(x = regions, y = counts)) +
+  geom_bar(fill = "#0073C2FF", stat = "identity") + 
+  geom_text(aes(label = counts), vjust = -0.3) +
+  theme_minimal()
+
+
+
+
+```
+
+This is a text field where we found a total of `r nrow(tb_un)` rows. 
+There are `r nrow(filter(tb_un,country == ""))` rows with no values.
+
+* Pre and Post 2002 records
+
+This field tags the row for a pre or post parking enforcement summary of violations. 
+
+* Volume of parking violations : 
+
+(a) Before enforcement : Very high mean, max, a lot of overall violations, however, post enforcement the distribution has a much smaller magnitude. We took a square root of the violations as there are a few very large values that make the graph very hard to review. We clearly see a major decline in the pre vs post number of violations. Also the mean is noteworthy.
+
+```{r echo=FALSE, results = 'asis', fig.align= 'center', fig.height= 4, fig.width= 8}
+
+#compute the mean of pre and post violations
+v_mean <- tb_un_clean %>%
+  group_by(prepost) %>%
+  summarise(grp.mean = mean(sqrt(violations)))
+
+# Using ggplot object to plot violations
+
+v <- ggplot(tb_un_clean,aes(x = sqrt(violations)))
+
+# Change the filled in color by pre-post and add a mean line
+# Using transparent fill: alpha = 0.35
+v + geom_density(aes(fill = prepost), alpha = 0.35) +
+  geom_vline(aes(xintercept = grp.mean, color = prepost),
+             data = v_mean, linetype = "dashed") +
+  scale_color_manual(values = c("#868686FF", "#EFC000FF"))+
+  scale_fill_manual(values = c("#868686FF", "#EFC000FF"))
+
+
+
+```
+
+
+* Fines computed in USD: As fines are dependend on the number of violations, we see similar decline in distribution of fines owed after the enforcement. As fines have a very skewed distribution, visually the histogram is hard to review, hence we computer a square root to see the distribution better. We see see that missions have been fined a lot more before enforcement of fines however after the enforcement the missions have dramatically reduced fines owed.
+
+```{r echo=FALSE, results = 'asis', fig.align= 'center', fig.height= 4, fig.width= 8}
+
+#compute the mean of pre and post fines
+v_mean <- tb_un_clean %>%
+  group_by(prepost) %>%
+  summarise(grp.mean = mean(sqrt(fines)))
+
+# Using ggplot object to plot fines
+
+v <- ggplot(tb_un_clean,aes(x = sqrt(fines)))
+
+# Change the filled in color by pre-post and add a mean line
+# Using transparent fill: alpha = 0.35
+v + geom_density(aes(fill = prepost), alpha = 0.35) +
+  geom_vline(aes(xintercept = grp.mean, color = prepost),
+             data = v_mean, linetype = "dashed") +
+  scale_color_manual(values = c("#868686FF", "#EFC000FF"))+
+  scale_fill_manual(values = c("#868686FF", "#EFC000FF"))
+
+
+
+```
+
+* Diplomatic mission details 
+  + Total number of diplomats(from each country) - Majority of missions have under 20 diplomats.
+  + total number of family members - Most missions have under 20 family members.
+
+```{r echo=FALSE, results = 'asis', fig.align= 'center', fig.height= 4, fig.width= 2}
+
+# Using ggplot object to plot staffing and family distribution
+
+ggplot(tb_un_clean,aes(x = factor(1), y = staff)) + 
+  geom_boxplot(width = 0.6, fill = "grey") +
+  scale_color_manual(values = c("#00AFBB", "#E7B800")) + 
+  labs(x = NULL)
+
+
+
+```
+
+```{r echo=FALSE, results = 'asis', fig.align= 'center', fig.height= 4, fig.width= 2}
+
+# Using ggplot object to plot family distribution
+
+ggplot(tb_un_clean,aes(x = factor(1), y = spouse)) + 
+  geom_boxplot(width = 0.6, fill = "grey") +
+  scale_color_manual(values = c("#00AFBB", "#E7B800")) + 
+  labs(x = NULL)
+
+
+
+```
+  
+* Government wages index : Here we notice a most diplomats getting paid within 2-4 times the GDP of their country. We have to keep in mind that this index by itself is not helpful as GDP varis a lot by country. Also we decided to remove this field from our analysis as this has over 180 NA values. *We notice that government diplomat compensation varies a lot, from 10% to over 1100% of the GDP. The mean is 280%. Not all nations have a similar cost of living as does the US, so this major disparity between GDP and government diplomat wages is noteworthy. We will further evaluate this in this project.*
+```{r echo=FALSE, results = 'asis', fig.align= 'center', fig.height= 4, fig.width= 2}
+
+# Using ggplot object to plot wage index distribution
+summary(tb_un$gov_wage_gdp)
+ggplot(tb_un,aes(x = factor(1), y = gov_wage_gdp)) + 
+  geom_boxplot(width = 0.6, fill = "grey") +
+  scale_color_manual(values = c("#00AFBB", "#E7B800")) + 
+  labs(x = NULL)
+
+
+
+```
+* Individual country corruption index : -2.5 to a maximum of 1.5. We know this is a composite index where a higher number means more corruption.
+
+```{r echo=FALSE, results = 'asis', fig.align= 'center', fig.height= 4, fig.width= 2}
+
+# Using ggplot object to plot corruption index distribution
+
+ggplot(tb_un_clean,aes(x = factor(1), y = corruption)) + 
+  geom_boxplot(width = 0.6, fill = "grey") +
+  scale_color_manual(values = c("#00AFBB", "#E7B800")) + 
+  labs(x = NULL)
+
+
+
+```
+* Proportion of Muslim population
+  + Percentage of Muslim population - We see in the 2 histograms the distribution. The first has all nations where we see over 150 nations with a 0. Hence we build a second histogram with at least 20% population muslim. This view shows us the distribution of over 75 nations with at least 60% muslim population.
+  + Majority Muslim population - this is a boolean 0 or 1 flag to indicate majority are muslim.
+  
+```{r}
+hist(select(tb_un,pctmuslim), breaks = 0:1 - .01, main = "Percentage of Muslim Population", 
+     xlab = NULL)
+hist(select(filter(tb_un,pctmuslim > 0.2),pctmuslim), breaks = 0:1 - .01, main = "At least 20% of population is Muslim ", 
+     xlab = NULL)
+```    
+  
+  
+* Trade with the US: the trade relationships have a massive range from less than 100000 to several billions.
+
+```{r echo=FALSE, results = 'asis', fig.align= 'center', fig.height= 4, fig.width= 2}
+summary(tb_un_clean$trade)
+```
+
+* Breakdown of Vehicles : official, personal and total
+  + Total number of cars 
+  + Breakdown of person and official cars
+
+```{r echo=FALSE, results = 'asis', fig.align= 'center', fig.height= 4, fig.width= 2}
+print('Personal cars')
+summary(tb_un$cars_personal)
+print('Mission cars')
+summary(tb_un$cars_mission)
+print('Total cars')
+summary(tb_un$cars_total)
+```
+* Population of Country (as of 1998) : We find a large range here from population into just under half a million to over billion people.
+
+```{r echo=FALSE, results = 'asis', fig.align= 'center', fig.height= 4, fig.width= 2}
+summary(tb_un_clean$pop1998)
+```
+
+
+* GDP of country (as of 1998) : We notice here extremely poor nations with the lowest GDP as 95, a mean of about 5000 and as high as 36485. *We notice here too a huge disparity between nations. At the lowest end we see a GDP of only 95, average of 5236 and maximum of 36485. To equalize this a bit, we will compute a total compensation using the wage index by multiplying wage index to gdp, which together will give us a sense of total compensation. This allows us to use the variable better as the index while very useful does not help us understand the poverty or wealth of nations and their diplomats income.*
+```{r echo=FALSE, results = 'asis', fig.align= 'center', fig.height= 4, fig.width= 2}
+summary(tb_un_clean$gdppcus1998)
+kable(select(arrange(tb_un_clean,gdppcus1998),gdppcus1998,country)[1:10,], caption = "Lowest GDP")
+kable(select(arrange(tb_un_clean,desc(gdppcus1998)),gdppcus1998,country)[1:10,], caption = "Highest GDP")
+
+```
+* Aid to country : 
+  + military : We notice that aid to have a massive range, while the mean is relatively small at 0.2 million, we find nations receiving no aid, over 75% of military aid walls below 0.775 million.
+  + economic : Here we see the mean at 49 million and about 75% of aid below 40 million. There are some nations reseiving very high amount of economic aid at 1026 million(to Columbia)
+  + total US aid : Here we find 75% of all aid below 42 million with the highest aid to Israel, Egypt and Colombo.
+
+```{r echo=FALSE, results = 'asis', fig.align= 'center', fig.height= 4, fig.width= 2}
+print("Economic aid")
+summary(tb_un_clean$ecaid)
+
+print("Military aid")
+
+summary(tb_un_clean$milaid)
+
+print("Total aid")
+
+summary(tb_un_clean$totaid)
+
+```
+*Index variable for 'distUNplz' - Insufficiant information about this column.
+
+
+
+**This section needs clarification, modification of variables to improve relationships**
+## Analysis of key relationships
+
+Our first step is preliminary check across all key variables such as violations, staff and corruption. Interestingly, we found that there is no immediate evidence that the more the number of diplomats, the higher the violations. Most of the violations appears clustered at the lower bounds of the staff number between 0 and 20. However we observed an interesting pattern between violations and corruption. The more corrupt the country is, i.e., indicated by the corruption index, the more likely we would see the violation events. 
+
+```{r echo=FALSE, results = 'asis', fig.align= 'center', fig.height= 6, fig.width= 6}
+car::scatterplotMatrix(~ violations + staff + corruption, data=tb_un_clean, diagonal = list(method='histogram'), main = "Scatterplot Matrix for key variables")
+```
+```{r echo=FALSE, results = 'asis', fig.align= 'center', fig.height= 10, fig.width= 10}
+car::scatterplotMatrix(~ violations + spouse + trade + ecaid + milaid + totaid +distUNplz, data=tb_un_clean, diagonal = list(method='histogram'), main = "Scatterplot Matrix for key variables")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r echo=FALSE, results = 'asis', fig.align= 'center', fig.height= 10, fig.width= 10}
+car::scatterplotMatrix(~ violations + staff + corruption + pctmuslim + pop1998 + gdppcus1998 +region, data=tb_un_clean, diagonal = list(method='histogram'), main = "Scatterplot Matrix for key variables")
+```
+
+
+Specific questions we have identified for exploration:  ** Need to filter responses and fill this one**
+
+*(a) Was there a relationship between corruption and parking violations?* 
+
+*(b) How does the number of diplomats contribute to the frequency of violations?*  
+
+*(c) Does the legislative change in October 2002 dramatically change volume of violations?*  
+
+*(d) Does the ranking of corruption index (descending order) show a relationship to the volume of parking violations(per diplomat)?*  
+
+*(e) Does the level of aid to the country or trade with country show relationship to the volume of parking violations(per diplomat)*  
+
+*(f) Does the country gdp, diplomat wage have a relationship to corruption index? i.e. what could have a statistical correlation to a culture of engaging in negligent acts of corruption.*
+
+*(g) Does WTC attack impact on parking violations?*
+
+*(h) Which country have the largest diplomatic footprint, including family and is there a relationship with violations ?*
+
+*(i) What is the ralationship between GDP and diplomatic wage ?* 
+
+*(j) What is the relationship between economic aid, military aid and other country data like population, GDP?*
+
+*(j) Which country have more cars? If so, more cars means more staff?*
+
+correlation between 'cars_total' and question 2 answer.
+Those are a few questions I haven't answered yet.
+I think we can work on those questions with our own variables assignments. When you assign the new variable, comments with a bit more description so that in final RMD, I can go through all the variables and change them all to make it consistent.
+
+
+**This correlation and graphs need review and modification**
+
+```{r echo=FALSE, results = 'asis', fig.align= 'center', fig.height= 3, fig.width= 4}
+tib_computed_pre = dplyr::select(filter(computed, prepost == "pre"),-prepost,-country,-region,-milaid,-ecaid,-pop_mil)
+kable(correlate(tib_computed_pre)[1:5,], caption = "Correlation - Pre 2002")
+ggplot(tib_computed_pre, aes(corruption, avg_viols)) + geom_point(shape = 16, size = 5) + theme_minimal()
+ggplot(tib_computed_pre, aes(totaid, avg_viols)) + geom_point(shape = 16, size = 5) + theme_minimal()
+ggplot(tib_computed_pre, aes(gdp_1000s, avg_viols)) + geom_point(shape = 16, size = 5) + theme_minimal()
+```
+
+
+```{r echo=FALSE, results = 'asis'}
+tib_computed_pos = dplyr::select(filter(computed, prepost == "pos"),-prepost, -country, -region)
+kable(correlate(tib_computed_pos)[1:10,], caption = "Correlation - Post 2002")
+ggplot(tib_computed_pre, aes(corruption, avg_viols)) + geom_point(shape = 16, size = 5) + theme_minimal()
+ggplot(tib_computed_pre, aes(totaid, avg_viols)) + geom_point(shape = 16, size = 5) + theme_minimal()
+ggplot(tib_computed_pre, aes(gdp_1000s, avg_viols)) + geom_point(shape = 16, size = 5) + theme_minimal()
+```
+
+
+```{r echo=FALSE, results = 'asis'}
+computed_full = subset(tb_un_revised, select = c(country,region,prepost,corruption,ecaid,milaid,violations,avg_viols,trade_mil,pop_mil,gdp_1000s))
+com1 = select(mutate(filter(computed_full,prepost =="pre"), country = country, pre_2002_violations = avg_viols),country, pre_2002_violations )
+com2 = select(mutate(filter(computed_full,prepost =="pos"), country = country, pos_2002_violations  = avg_viols),country, pos_2002_violations )
+com_final = arrange(filter(merge(com1,com2),country !=""),desc(pre_2002_violations))
+kable(com_final[1:25,], caption = "Parking Violation side by side ( pre / post enforcement )")
+
+```
+
+**DUPLICATE - CAN WE REMOVE THESE?**
+
+We looked at the total number of violations and found that the violations could be as low as `r format(round(min(FMcorrupt$violations, na.rm=TRUE), 2))` and could also go as frequent as `r format(round(max(FMcorrupt$violations, na.rm=TRUE), 2))`. This shows a wide discrepancy in violations, from which we could gather some insightful information regarding other factors such as corruption index and the number of diplomats visits to the US.
+
+
+Looking at the diplomat variable, i.e., staff, we notice that diplomat numbers stay between `r format(round(min(FMcorrupt$staff, na.rm=TRUE), 2))` and `r format(round(max(FMcorrupt$staff, na.rm=TRUE), 2))`~~ 
+
+~~The column'prepost' plays a key role in the defintion of the dataset and identifies whether the data is prior or post to the parking enforcement implemented in 2002. This dataset appears to be in the form of Panel or Longitudinal Data. It has both cross-sectional (Data around corruptions , violations etc) and a time series (pre vs post) dimension.
+
+
+
+
 
 
 1. violations
 
-```{r shape}
+```{r shape1 }
 summary(FMcorrupt$violations)
-describe(FMcorrupt$violations)
+Hmisc::describe(FMcorrupt$violations)
 ```
 
 It appears that 3/4th of dataset habe the violations that is less than 51.9 and where as 95% of the rows have value less than or equal to 640.8 with the maximum value being 3392.9. The distribution seems to be skewed to the right. Let us do the boxplot and see the outliers clearly.
 
 
-```{r shape}
+```{r shape2}
 boxplot(FMcorrupt$violations)
 boxplot(log(FMcorrupt$violations))
 ```
 
 It is very clear from the boxplot that majority of the values are below the value 51.9 , transforming the violations to the log scale gives a better picture.
 
-```{r shape}
+```{r shape3}
 hist((FMcorrupt$violations)) 
 hist(log(FMcorrupt$violations))
 ```
@@ -114,7 +561,7 @@ hist(log(FMcorrupt$violations))
 
 2. prepost
 
-```{r shape}
+```{r shape4}
 pre <- FMcorrupt[FMcorrupt$prepost =='pre',]
 pos <- FMcorrupt[FMcorrupt$prepost =='pos',]
 ```
@@ -122,21 +569,23 @@ pos <- FMcorrupt[FMcorrupt$prepost =='pos',]
 Let's divide the data into two set and analyse the key variable 'violations'
 
 
-```{r shape}
-describe(pre$violations)
-describe(pos$violations)
+```{r shape5}
+Hmisc::describe(pre$violations)
+Hmisc::describe(pos$violations)
 ```
 
 It is very interesting to the see mean value drop from 198.1 to 3.688 indicating such a huge change in the behaviour of diplomats since the enforcement of legal penalties and removing the immunity.
 
 
+**END OF ----------------------------------------         DUPLICATE**
+
+
+## Analysis of Key Relationships
+
 ## (a) Was there a relationship between corruption and parking violations?  
 
-Our first step is preliminary check across all key variables such as violations, staff and corruption. Interestingly, we found that there is no immediate evidence that the more the number of diplomats, the higher the violations. Most of the violations appears clustered at the lower bounds of the staff number between 0 and 20. However we observed an interesting pattern between violations and corruption. The more corrupt the country is, i.e., indicated by the corruption index, the more likely we would see the violation events. 
 
-```{r scatterplotMatrix}
-scatterplotMatrix(~ violations + staff + corruption, data=FMcorrupt, diagonal = list(method='histogram'), main = "Scatterplot Matrix for key variables")
-```
+** Suggest using the tibble tables which allow more filtering options**
 
 Our first step is to subset the corruption index data to further zoom in to the most corrupted countries. We created subcases with below and above zero. 
 
@@ -162,11 +611,11 @@ nrow(FM_subcases_below_zero)
 We also removed any corruption observations where the event is "NA". Using the logical vector to pull out from the original data, we found that the total number of observation above corruption index 0 is `r nrow(FM_subcases_above_zero)` and observation below corruption index 0 is `r nrow(FM_subcases_below_zero)` .
 
 ```{r}
-scatterplotMatrix(~ violations + corruption, data=FM_subcases_above_zero, diagonal=list(method="histogram"))
+car::scatterplotMatrix(~ violations + corruption, data=FM_subcases_above_zero, diagonal=list(method="histogram"))
 ```
 
 ```{r}
-scatterplotMatrix(~ violations + corruption, data=FM_subcases_below_zero, diagonal=list(method="histogram"))
+car::scatterplotMatrix(~ violations + corruption, data=FM_subcases_below_zero, diagonal=list(method="histogram"))
 ```
 
 ```{r}
@@ -187,10 +636,10 @@ cor_above
 ## (b) Does religion have a role in the behaviour and violations
 
 ```{r}
-scatterplot( log(violations) ~ pctmuslim       , data=FMcorrupt, 
-  	ylab="Corruption", xlab="% Muslim", 
-   main="Enhanced Scatter Plot" 
-   )
+#car::scatterplot( log(violations) ~ pctmuslim       , data=FMcorrupt, 
+ # 	ylab="Corruption", xlab="% Muslim", 
+  # main="Enhanced Scatter Plot" 
+ #  )
 
 cor(FMcorrupt$violations,FMcorrupt$pctmuslim,use="complete.obs")
 
@@ -202,16 +651,17 @@ This plot shows that there is not much  relationship between the religion and th
 
 
 ```{r}
-scatterplot( log(violations) ~ cars_total       , data=FMcorrupt, 
-  	ylab="Corruption", xlab="# of Cars", 
-   main="Enhanced Scatter Plot" 
-   )
+#car::scatterplot( log(violations) ~ cars_total       , data=FMcorrupt, 
+#  	ylab="Corruption", xlab="# of Cars", 
+#   main="Enhanced Scatter Plot" 
+ #  )
 
 cor(FMcorrupt$violations,FMcorrupt$cars_total,use="complete.obs")
 
 ```
 ## Behaviour based on the continets
 
+** regional behavior can be plotted much more easily as following , can we remove this section?**
 ```{r}
 africa <- FMcorrupt[FMcorrupt$r_africa ==1 & !is.na(FMcorrupt$r_africa),]
 nrow(africa)/2
@@ -229,18 +679,41 @@ nrow(southamerica)/2
 middleeast <- FMcorrupt[FMcorrupt$r_middleeast ==1 & !is.na(FMcorrupt$r_middleeast),]
 nrow(middleeast)/2
 
-describe(africa$violations)
-describe(asia$violations)
-describe(europe$violations)
-describe(southamerica$violations)
-describe(middleeast$violations)
+Hmisc::describe(africa$violations)
+Hmisc::describe(asia$violations)
+Hmisc::describe(europe$violations)
+Hmisc::describe(southamerica$violations)
+Hmisc::describe(middleeast$violations)
 
+```
+
+```{r echo=FALSE, results = 'asis', fig.align= 'center', fig.height= 4, fig.width= 8}
+
+#compute the number of countries by region. This is visually more useful.
+
+country_base <- tb_un_clean %>%
+  group_by(region) %>%
+  summarise(sum_violations = round(sum(violations)))
+# Remove any NA rows
+
+country_base = select(filter(country_base,!is.na(region)),everything())
+
+# Make regions more readable
+
+regions = c("Isls","S Amer","Eur","Asia","Aust","Afr","MidE")
+
+country_base$regions = regions
+
+# Create a bar plot to show the grouped total of countries by continental region.
+ggplot(country_base, aes(x = regions, y = sum_violations)) +
+  geom_bar(fill = "#0073C2FF", stat = "identity") + 
+  geom_text(aes(label = sum_violations), vjust = -0.3) +
+  theme_minimal()
 ```
 
 
 
-
-### Results
+### **Results -- Need to rewrite this section**
 
 Upon checking the violations Vs corruption based on corruption index centered at '0', we observed that corruption is relevant in predicting the parking violation when the index is below 0 as indicated by our correlation value at `r format(round(cor_below), 2)` . However observation above the corruption index of "1"", we do not observe a strong relationship between the corruption and the parking violations as indicated by the negative value `r format(round(cor_above, 2))` . This somehow indicates that we need to further fine tune our data analysis with more variables in investigation of corruption index and parking violations. 
 
@@ -275,6 +748,9 @@ To our surprise, violations of Kuwait pre and post 2002 was astonashing. Its pre
 ### Results
 
 The number of staff does not correlate with the frequency of parking violations in New York Manhattan. Investigation of the average number of violations per diplomats clarified our previous findings that the number of diplomats did not matter. Some countries diplomat committed parking violations as high as `r max_vio`, which rather suggested other underlying causes for such a high frequency per diplomat. 
+
+## Bibliography and R packages used in this project
+
 
 
 
