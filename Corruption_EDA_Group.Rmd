@@ -219,7 +219,7 @@ At a glance we observe the regions as following:
 6 Africa
 7 middle east
 
-Each of these continents have a boolean variable : Africa, Middle East, South America, Asia.
+Each of these continents have a boolean variable : Africa, Middle East, South America, Asia. **Divide the compute of region totals by 2(pre/post)**
 
 ```{r echo=FALSE, results = 'asis', fig.align= 'center', fig.height= 4, fig.width= 8}
 
@@ -402,7 +402,7 @@ summary(tb_un$cars_total)
 summary(tb_un_clean$pop1998)
 ```
 
-
+**remove duplicates due to pre/post**
 * GDP of country (as of 1998) : We notice here extremely poor nations with the lowest GDP as 95, a mean of about 5000 and as high as 36485. *We notice here too a huge disparity between nations. At the lowest end we see a GDP of only 95, average of 5236 and maximum of 36485. To equalize this a bit, we will compute a total compensation using the wage index by multiplying wage index to gdp, which together will give us a sense of total compensation. This allows us to use the variable better as the index while very useful does not help us understand the poverty or wealth of nations and their diplomats income.*
 ```{r echo=FALSE, results = 'asis', fig.align= 'center', fig.height= 4, fig.width= 2}
 summary(tb_un_clean$gdppcus1998)
@@ -435,13 +435,11 @@ summary(tb_un_clean$totaid)
 **This section needs clarification, modification of variables to improve relationships**
 ## Analysis of key relationships
 
-Our first step is preliminary check across all key variables such as violations, staff and corruption. Interestingly, we found that there is no immediate evidence that the more the number of diplomats, the higher the violations. Most of the violations appears clustered at the lower bounds of the staff number between 0 and 20. However we observed an interesting pattern between violations and corruption. The more corrupt the country is, i.e., indicated by the corruption index, the more likely we would see the violation events. 
+** USE ME    Our first step is preliminary check across all key variables such as violations, staff and corruption. Interestingly, we found that there is no immediate evidence that the more the number of diplomats, the higher the violations. Most of the violations appears clustered at the lower bounds of the staff number between 0 and 20. However we observed an interesting pattern between violations and corruption. The more corrupt the country is, i.e., indicated by the corruption index, the more likely we would see the violation events. **
 
-```{r echo=FALSE, results = 'asis', fig.align= 'center', fig.height= 6, fig.width= 6}
-car::scatterplotMatrix(~ violations + staff + corruption, data=tb_un_clean, diagonal = list(method='histogram'), main = "Scatterplot Matrix for key variables")
-```
+
 ```{r echo=FALSE, results = 'asis', fig.align= 'center', fig.height= 10, fig.width= 10}
-car::scatterplotMatrix(~ violations + spouse + trade + ecaid + milaid + totaid +distUNplz, data=tb_un_clean, diagonal = list(method='histogram'), main = "Scatterplot Matrix for key variables")
+car::scatterplotMatrix(~ violations + spouse + trade + ecaid + milaid + totaid + gdppcus1998, data=tb_un_clean, diagonal = list(method='histogram'), main = "Scatterplot Matrix for key variables")
 ```
 
 
@@ -465,34 +463,31 @@ car::scatterplotMatrix(~ violations + staff + corruption + pctmuslim + pop1998 +
 
 Specific questions we have identified for exploration:  ** Need to filter responses and fill this one**
 
-*(a) Was there a relationship between corruption and parking violations?* 
+*(a) Was there a relationship between corruption and parking violations?* Y
 
-*(b) How does the number of diplomats contribute to the frequency of violations?*  
+*(b) How does the number of diplomats contribute to the frequency of violations?*  Nothing
 
-*(c) Does the legislative change in October 2002 dramatically change volume of violations?*  
+*(c) Does the legislative change in October 2002 dramatically change volume of violations?*  Yes, show table and graph
 
-*(d) Does the ranking of corruption index (descending order) show a relationship to the volume of parking violations(per diplomat)?*  
+*(d) Does the ranking of corruption index (descending order) show a relationship to the volume of parking violations(per diplomat)?*  -revise table 11 and add corruption to show this, there is a relation here.
 
-*(e) Does the level of aid to the country or trade with country show relationship to the volume of parking violations(per diplomat)*  
+*(e) Does the level of aid to the country or trade with country show relationship to the volume of parking violations(per diplomat)*  -No, refer to correlation absence
 
-*(f) Does the country gdp, diplomat wage have a relationship to corruption index? i.e. what could have a statistical correlation to a culture of engaging in negligent acts of corruption.*
+*(f) Does the country gdp, diplomat wage have a relationship to corruption index? i.e. what could have a statistical correlation to a culture of engaging in negligent acts of corruption.* - Yes there is, refer to scatterplots
 
-*(g) Does WTC attack impact on parking violations?*
+*(g) Does WTC attack impact on parking violations?* - Yes. Refer to charts
 
-*(h) Which country have the largest diplomatic footprint, including family and is there a relationship with violations ?*
+** DELETE ME(h) Which country have the largest diplomatic footprint, including family and is there a relationship with violations ?**
 
-*(i) What is the ralationship between GDP and diplomatic wage ?* 
+** DELETE ME(i) What is the ralationship between GDP and diplomatic wage ?**
 
-*(j) What is the relationship between economic aid, military aid and other country data like population, GDP?*
+** DELETE ME(j) What is the relationship between economic aid, military aid and other country data like population, GDP?* **
 
-*(j) Which country have more cars? If so, more cars means more staff?*
-
-correlation between 'cars_total' and question 2 answer.
-Those are a few questions I haven't answered yet.
-I think we can work on those questions with our own variables assignments. When you assign the new variable, comments with a bit more description so that in final RMD, I can go through all the variables and change them all to make it consistent.
+** DELETE ME (j) Which country have more cars? If so, more cars means more staff?**
 
 
-**This correlation and graphs need review and modification**
+
+**Keep the pre charts and remove post as they are influenced heavily by enforcement**
 
 ```{r echo=FALSE, results = 'asis', fig.align= 'center', fig.height= 3, fig.width= 4}
 tib_computed_pre = dplyr::select(filter(computed, prepost == "pre"),-prepost,-country,-region,-milaid,-ecaid,-pop_mil)
@@ -512,6 +507,14 @@ ggplot(tib_computed_pre, aes(gdp_1000s, avg_viols)) + geom_point(shape = 16, siz
 ```
 
 
+##Analysis of Secondary Effects (10 pts)
+What secondary variables might have confounding effects on the relationships you have identified? Explain how these variables affect your understanding of the data.
+
+- Show the relation here with the top 25 offenders, with corrption and violations, pre and post 9/11 explain the secondard effect of a major world event and change of US law.
+** Only show top 20 offenders and show corruption index**
+
+EXAMPLE 1
+
 ```{r echo=FALSE, results = 'asis'}
 computed_full = subset(tb_un_revised, select = c(country,region,prepost,corruption,ecaid,milaid,violations,avg_viols,trade_mil,pop_mil,gdp_1000s))
 com1 = select(mutate(filter(computed_full,prepost =="pre"), country = country, pre_2002_violations = avg_viols),country, pre_2002_violations )
@@ -521,172 +524,8 @@ kable(com_final[1:25,], caption = "Parking Violation side by side ( pre / post e
 
 ```
 
-**DUPLICATE - CAN WE REMOVE THESE?**
 
-We looked at the total number of violations and found that the violations could be as low as `r format(round(min(FMcorrupt$violations, na.rm=TRUE), 2))` and could also go as frequent as `r format(round(max(FMcorrupt$violations, na.rm=TRUE), 2))`. This shows a wide discrepancy in violations, from which we could gather some insightful information regarding other factors such as corruption index and the number of diplomats visits to the US.
-
-
-Looking at the diplomat variable, i.e., staff, we notice that diplomat numbers stay between `r format(round(min(FMcorrupt$staff, na.rm=TRUE), 2))` and `r format(round(max(FMcorrupt$staff, na.rm=TRUE), 2))`~~ 
-
-~~The column'prepost' plays a key role in the defintion of the dataset and identifies whether the data is prior or post to the parking enforcement implemented in 2002. This dataset appears to be in the form of Panel or Longitudinal Data. It has both cross-sectional (Data around corruptions , violations etc) and a time series (pre vs post) dimension.
-
-
-
-
-
-
-1. violations
-
-```{r shape1 }
-summary(FMcorrupt$violations)
-Hmisc::describe(FMcorrupt$violations)
-```
-
-It appears that 3/4th of dataset habe the violations that is less than 51.9 and where as 95% of the rows have value less than or equal to 640.8 with the maximum value being 3392.9. The distribution seems to be skewed to the right. Let us do the boxplot and see the outliers clearly.
-
-
-```{r shape2}
-boxplot(FMcorrupt$violations)
-boxplot(log(FMcorrupt$violations))
-```
-
-It is very clear from the boxplot that majority of the values are below the value 51.9 , transforming the violations to the log scale gives a better picture.
-
-```{r shape3}
-hist((FMcorrupt$violations)) 
-hist(log(FMcorrupt$violations))
-```
-
-
-
-2. prepost
-
-```{r shape4}
-pre <- FMcorrupt[FMcorrupt$prepost =='pre',]
-pos <- FMcorrupt[FMcorrupt$prepost =='pos',]
-```
-
-Let's divide the data into two set and analyse the key variable 'violations'
-
-
-```{r shape5}
-Hmisc::describe(pre$violations)
-Hmisc::describe(pos$violations)
-```
-
-It is very interesting to the see mean value drop from 198.1 to 3.688 indicating such a huge change in the behaviour of diplomats since the enforcement of legal penalties and removing the immunity.
-
-
-**END OF ----------------------------------------         DUPLICATE**
-
-
-## Analysis of Key Relationships
-
-## (a) Was there a relationship between corruption and parking violations?  
-
-
-** Suggest using the tibble tables which allow more filtering options**
-
-Our first step is to subset the corruption index data to further zoom in to the most corrupted countries. We created subcases with below and above zero. 
-
-```{r}
-subcases_above_zero = 0 <= FMcorrupt$corruption & !is.na(FMcorrupt$corruption) 
-```
-
-```{r}
-subcases_below_zero = 0 >= FMcorrupt$corruption & !is.na(FMcorrupt$corruption) 
-```
-
-
-```{r}
-FM_subcases_above_zero = FMcorrupt[subcases_above_zero, ]
-nrow(FM_subcases_above_zero)
-```
-
-```{r}
-FM_subcases_below_zero = FMcorrupt[subcases_below_zero, ]
-nrow(FM_subcases_below_zero)
-```
-
-We also removed any corruption observations where the event is "NA". Using the logical vector to pull out from the original data, we found that the total number of observation above corruption index 0 is `r nrow(FM_subcases_above_zero)` and observation below corruption index 0 is `r nrow(FM_subcases_below_zero)` .
-
-```{r}
-car::scatterplotMatrix(~ violations + corruption, data=FM_subcases_above_zero, diagonal=list(method="histogram"))
-```
-
-```{r}
-car::scatterplotMatrix(~ violations + corruption, data=FM_subcases_below_zero, diagonal=list(method="histogram"))
-```
-
-```{r}
-cor(FMcorrupt$corruption, FMcorrupt$violations, use="complete.obs")
-```
-
-```{r}
-cor_below = cor(FM_subcases_below_zero$corruption, FM_subcases_below_zero$violations, use ='complete.obs')
-cor_below
-```
-
-```{r}
-cor_above = cor(FM_subcases_above_zero$corruption, FM_subcases_above_zero$violations, use ='complete.obs')
-cor_above
-```
-
-
-## (b) Does religion have a role in the behaviour and violations
-
-```{r}
-#car::scatterplot( log(violations) ~ pctmuslim       , data=FMcorrupt, 
- # 	ylab="Corruption", xlab="% Muslim", 
-  # main="Enhanced Scatter Plot" 
- #  )
-
-cor(FMcorrupt$violations,FMcorrupt$pctmuslim,use="complete.obs")
-
-```
-
-This plot shows that there is not much  relationship between the religion and the behaviour (violations) , there are too many observations with the % muslim close to 0 and as well as 1. So the violations cannot be directly related %muslim.
-
-## (b) Does number of cars  have a role in the behaviour and violations
-
-
-```{r}
-#car::scatterplot( log(violations) ~ cars_total       , data=FMcorrupt, 
-#  	ylab="Corruption", xlab="# of Cars", 
-#   main="Enhanced Scatter Plot" 
- #  )
-
-cor(FMcorrupt$violations,FMcorrupt$cars_total,use="complete.obs")
-
-```
-## Behaviour based on the continets
-
-** regional behavior can be plotted much more easily as following , can we remove this section?**
-```{r}
-africa <- FMcorrupt[FMcorrupt$r_africa ==1 & !is.na(FMcorrupt$r_africa),]
-nrow(africa)/2
-
-asia <- FMcorrupt[FMcorrupt$r_asia ==1 & !is.na(FMcorrupt$r_asia),]
-nrow(asia)/2
-
-europe <- FMcorrupt[FMcorrupt$r_europe ==1 & !is.na(FMcorrupt$r_europe),]
-nrow(europe)/2
-
-southamerica <- FMcorrupt[FMcorrupt$r_southamerica ==1 & !is.na(FMcorrupt$r_southamerica),]
-nrow(southamerica)/2
-
-
-middleeast <- FMcorrupt[FMcorrupt$r_middleeast ==1 & !is.na(FMcorrupt$r_middleeast),]
-nrow(middleeast)/2
-
-Hmisc::describe(africa$violations)
-Hmisc::describe(asia$violations)
-Hmisc::describe(europe$violations)
-Hmisc::describe(southamerica$violations)
-Hmisc::describe(middleeast$violations)
-
-```
-
+EXAMPLE 2
 ```{r echo=FALSE, results = 'asis', fig.align= 'center', fig.height= 4, fig.width= 8}
 
 #compute the number of countries by region. This is visually more useful.
@@ -715,7 +554,11 @@ ggplot(country_base, aes(x = regions, y = sum_violations)) +
 
 ### **Results -- Need to rewrite this section**
 
-Upon checking the violations Vs corruption based on corruption index centered at '0', we observed that corruption is relevant in predicting the parking violation when the index is below 0 as indicated by our correlation value at `r format(round(cor_below), 2)` . However observation above the corruption index of "1"", we do not observe a strong relationship between the corruption and the parking violations as indicated by the negative value `r format(round(cor_above, 2))` . This somehow indicates that we need to further fine tune our data analysis with more variables in investigation of corruption index and parking violations. 
+*notes: We find two major themes here: 1) the diplomatic culture of corruption continued unchecked unti the enforcement in october 2002. 2) *
+
+Upon checking the violations Vs corruption based on corruption index centered at '0', we observed that corruption is relevant in predicting the parking violation when the index is below 0 as indicated by our correlation value at 
+
+XX. However observation above the corruption index of "1"", we do not observe a strong relationship between the corruption and the parking violations as indicated by the negative value XX . This somehow indicates that we need to further fine tune our data analysis with more variables in investigation of corruption index and parking violations. 
 
 
 ## (b) How does the number of diplomats contribute to the frequency of violations?  
