@@ -2,73 +2,76 @@
 title: "An Exploratory Analysis of Corruption and Parking Violations"
 author: "Kenneth Chen, Shiraz Chakraverty, Praba Santhanakrishnan"
 date: "May 28, 2018"
-output:
-  html_document:
-    df_print: paged
-  fig_caption: yes
-  fig_height: 3
-  fig_width: 3
-  df_print: paged
-  include_graphics: yes
+output: 
   pdf_document: default
+  df_print: paged
+  fig_width: 3
+  fig_height: 3
+  fig_caption: yes
   toc: yes
+  include_graphics: yes
 ---
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE,fig.width=4, fig.height=3)
-
 # Load R library packages, R Studio would first need to have these packages installed.
 library(car)
 library(Hmisc)
 library(tidyverse)
-library(dbplyr)
+library(dplyr)
 library(knitr)
 library(corrplot)
 library(ggplot2)
 library(tinytex)
+library(corrr)
+library(formatR)
+
+# Set display tags for chunks to wrap around the text box
+knitr::opts_chunk$set(echo = TRUE,tidy.opts=list(width.cutoff=60),tidy=TRUE)
+
 ```
 
 
 
-# Introduction
+# 1. Introduction
 
 In this lab assignment, we have access to a unique social experiment to understand relationships between culture and corruption. We define these concepts here and then provide the operational definition to guide our measurements. Our goal is to perform basic exploratory data analysis, based on the following constructs,   
 
-*1. Every region and country has some form of corruption, a prevailing diplomatic relationship with the UN and by extention, The United States.*
+i. Every region and country has some form of corruption, a prevailing diplomatic relationship with the UN and by extention, The United States.*
 
-*2 Diplomatic attitudes are tuned into the following:*  
+ii. Diplomatic attitudes are tuned into the following:*  
 
-   *+ Economic development of nation.*  
+   * Economic development of nation. 
    
-   *+ Current world events, how they effect their nation.*  
+   * Current world events, how they effect their nation.*  
    
-   *+ Level of crime in nation*  
+   * Level of crime in nation*  
    
-   *+ Population of nation, per capita income and crime index.*  
+   * Population of nation, per capita income and crime index.
    
 
-*3. The Clinton-Schumer amendment of October 2002 happens about 13 months after WTC terrorist attacks. This change is visible in the dataset as pre and post records,gives a numerical measure of effects of enforcement.*
+iii. The Clinton-Schumer amendment of October 2002 happens about 13 months after WTC terrorist attacks. This change is visible in the dataset as pre and post records,gives a numerical measure of effects of enforcement.
 
 We are motivated to identify strong relationships between various factors (independent variables) and voilations (dependent variable).Ultimately the construct we want to evaluate is the effect of diplomatic culture, aid and economic metrics, population, corruption and parking violations. We would like to explore relationships there variables have to one another and draw some observations based on them
 
-## R Environment Setup
+### 1.1 R Environment Setup
 
 The following packages are required prior to running this project in your Rstudio environment, by running installed.packages() at your R console, you can confirm your list of packages.* 
 
-*To install the following packages, simply run install.packages('pachage-name')*
+To install the following packages, simply run install.packages('pachage-name')
 
 * List of Packages
   + car - Companion to Applied Regression
   + Hmisc - Harrell Miscellaneous
   + tinytex - To build pdf renders using knit
   + tidyverse - To perform more advanced data transformations
+  + dplyr - data transformations (part of tidyverse)
   + corrr - Performing Correlation in R
   + knitr - For R markdown tables, graphs and rendering features.
   + ggplot2 - For advanced features for descriptive graphs (line, box, dot,etc)
 
-All packages are documented Here : <Link : <https://cran.r-project.org/web/packages/>
+Package library : <https://cran.r-project.org/web/packages/>
 
   
-## The Dataset (Summary View)
+### 1.2 The Dataset (Summary View)
 
 This section describes the dataset, variable types, number of observations, schema, dimensions. We also delve into data quality, issues, handling of issues we found. Finally we address data processing and preparation.
 
@@ -87,7 +90,7 @@ tb_un = dplyr::as_tibble(df_un)
 
  + Dataset has `r nrow(tb_un)` rows and `r ncol(tb_un)` columns.   
  + Shape dimensions are (`r dim(tb_un)`).   
- + Data gaps : blanks(Na represents a blank) ranging from 33 to 180.  
+ + Data gaps : blanks(Na represents a blank) ranging from 33 to 180, staggered across variables. We address these on a case by case basis. 
  + Schema and features:
 
 ```{r}
@@ -116,42 +119,50 @@ The data table is composed of the following variables ( variables are fields):
 * Proportion of Muslim population
 
 
-### Data quality issues
+### 1.3 Data Quality assessment and underlying issues
 
 This section shows the quality of the records, issues we found and steps we took to prepare it for exploratory data analysis.
 
-```{r echo=FALSE, results = 'asis'}
+```{r results = 'asis'}
 # filter for the four columns that have a lot of NA values, for cars and diplomat wage index
-tb_view_na = select(filter_all(tb_un,any_vars(is.na(.))),wbcode,prepost,corruption, violations,gdppcus1998,totaid,gov_wage_gdp,cars_personal,cars_mission, cars_total)
+tb_view_na = select(filter_all(tb_un,any_vars(is.na(.))),prepost,corruption,violations,gdppcus1998,totaid,gov_wage_gdp,cars_total)
 
 # create a nicely formatted markdown table, the matrix slicing shows the first 10 rows for cars and diplomat wage blanks.
 kable(head(tb_view_na[1:10,]), caption = "Rows with blank columns values")
 ```
 
-The above table shows us top 10 rows of `r nrow(tb_view_na)`, where columns are blank. However we notice that we can still filter some of these out by vertical slicing.
+The above table shows us top 10 rows of `r nrow(tb_view_na)`, where some columns have a blank or NA in several rows.
 
-```{r echo=FALSE, results = 'asis'}
-# [Vertical slicing 1st pass] Update the base tibble by removing the columns for diplomat wage index and cars data.
+```{r results = 'asis'}
+# [Vertical slicing 1st pass] Update the base tibble by
+# removing the columns for diplomat wage index and cars
+# data.
 tb_un_clean = dplyr::select(tb_un,-gov_wage_gdp,-cars_personal,-cars_mission, -cars_total )
 
-# filter from rows with no violation data and store them for a view tibble
+# filter from rows with no violation data and store them
+# for a view tibble
 bad_data_vl = dplyr::filter(tb_un_clean, is.na(violations))
 
-# filter for rows with no pre/post tagging and store them for a view tibble
+# filter for rows with no pre/post tagging and store them
+# for a view tibble
 bad_data_pp = dplyr::filter(tb_un_clean, prepost == "")
 
-# create a nicely formatted markdown table, the matrix slicing shows the first 10 rows for the first seven columns.
+# create a nicely formatted markdown table, the matrix slicing 
+# shows the first 10 rows for the first seven columns.
 kable(head(bad_data_pp[1:10,1:7]), caption = "Rows with blank pre/post tagging")
 
-# create a nicely formatted markdown table, the matrix slicing shows the first 10 rows for the first seven columns.
+# create a nicely formatted markdown table, the matrix slicing 
+# shows the first 10 rows for the first seven columns.
 kable(head(bad_data_vl[1:10,1:7]), caption = "Rows with blank violations")
 
 ```
-```{r echo=FALSE, results = 'asis'}
-# [Horizontal slicing 2nd pass]update the base tibble by removing the rows where violations is empty.
+```{r results = 'asis', tidy=TRUE, }
+# [Horizontal slicing 2nd pass]update the base tibble by removing 
+# the rows where violations is empty.
 tb_un_clean = dplyr::select(filter(tb_un_clean, prepost != ""),everything())
 
-# [Horizontal slicing 3rd pass] Update the base tibble by removing rows with prepost blank.
+# [Horizontal slicing 3rd pass] Update the base tibble by 
+# removing rows with prepost blank.
 tb_un_clean = dplyr::select(filter(tb_un_clean, !is.na(violations)),everything())
 
 # create a view only tibble to validate post processing status of all rows that have NA in at least 1 column
@@ -163,12 +174,10 @@ kable(head(tb_view_na[1:10,]), caption = "Rows with blank columns values post pr
 
 
 
-The above tables shows us  a total of `r nrow(tb_view_na)` rows with scattered NA values which we can still utilize as the main variables we are interested in are still intact.
+The above tables shows us  a total of `r nrow(tb_view_na)` rows with scattered NA values which we can still utilize as the primary set of independent and dependent variables we are interested in are minimally impacted.
 
 
-~~There are 66 rows that have empty string for prepost and the associated data for the other columns for these rows are 'NA' , the only column that has value for these are 'wbcode'. It is possible that the data is not either observerd or entered into the data set. These rows do not provide any meaningful information and do not add any additional value to the analysis and it can be safely removed.~~
-
-### Summary of data processing and preparation
+### 1.4 Data processing and preparation
 
 We performed the following modifications to make the data more uniform. Here are the changes,
 
@@ -180,10 +189,10 @@ We performed the following modifications to make the data more uniform. Here are
 
 *4. Calculate revised trade in millions, population in millions as aid is presented in millions, this steps makes the unit for these to be the same.*  
 
-*5. Vertical slicing of cars data and diplomat wage index due to excessive blanks.*
+*5. Vertical slicing and severation of cars and diplomat wage index columns due to excessive blanks.*
 
 
-```{r echo=FALSE, results = 'asis'}
+```{r results = 'asis'}
 
 # Create calculated fields using tidyverse functions, round floats.
 tb_un_revised = dplyr::select(mutate(tb_un_clean, corruption = round(corruption,2), avg_viols = round((violations / staff),0), trade_mil = round((trade/1000000),0), pop_mil = round((pop1998/1000000),0),gdp_1000s = round((gdppcus1998/1000),2)),everything())
@@ -205,29 +214,32 @@ kable(filter_all(tib_view,any_vars(is.na(.))), caption = "Rows with NA values")
 
 
 
-## Univariate Analysis for key variables
+## 2. Univariate Analysis for key variables
 
 Here we review at a glance some key descriptive features of all the variables we have been provided.
 
-1. Country and Country code. Here we also talk about the regions and boolean flags for each major region. Our goal is to view the depth of the dataset here. Hence we compute a grouped view of countries by region.
+* Country and Country code (column name(s) : wbcode , country)
+
+Here we also talk about the regions and boolean flags for each major region. Our goal is to view the depth of the dataset here. Hence we compute a grouped view of countries by region.
 
 At a glance we observe the regions as following: 
 
-1 Caribbean Islands
-2 south_americas
-3 Europe
-4 asia
-5 Australia
-6 Africa
-7 middle east
+1 Caribbean Islands  
+2 south_americas  
+3 Europe  
+4 asia  
+5 Australia  
+6 Africa  
+7 middle east  
 
-Each of these continents have a boolean variable : Africa, Middle East, South America, Asia. **Divide the compute of region totals by 2(pre/post)**
 
-```{r echo=FALSE, results = 'asis', fig.align= 'center', fig.height= 4, fig.width= 8}
+Each of these continents have a boolean variable : Africa, Middle East, South America, Asia.
+
+```{r results = 'asis', fig.align= 'center', fig.height= 2, fig.width= 4}
 
 #compute the number of countries by region. This is visually more useful.
 
-country_base <- tb_un_clean %>%
+country_base <- filter(tb_un_clean,prepost =="pre") %>%
   group_by(region) %>%
   summarise(counts = n())
 # Remove any NA rows
@@ -254,15 +266,15 @@ ggplot(country_base, aes(x = regions, y = counts)) +
 This is a text field where we found a total of `r nrow(tb_un)` rows. 
 There are `r nrow(filter(tb_un,country == ""))` rows with no values.
 
-* Pre and Post 2002 records
+* Pre and Post 2002 records (column name : prepost)
 
 This field tags the row for a pre or post parking enforcement summary of violations. 
 
-* Volume of parking violations : 
+* Volume of parking violations (column : violations) 
 
 (a) Before enforcement : Very high mean, max, a lot of overall violations, however, post enforcement the distribution has a much smaller magnitude. We took a square root of the violations as there are a few very large values that make the graph very hard to review. We clearly see a major decline in the pre vs post number of violations. Also the mean is noteworthy.
 
-```{r echo=FALSE, results = 'asis', fig.align= 'center', fig.height= 4, fig.width= 8}
+```{r results = 'asis', fig.align= 'center', fig.height= 2, fig.width= 4}
 
 #compute the mean of pre and post violations
 v_mean <- tb_un_clean %>%
@@ -286,9 +298,11 @@ v + geom_density(aes(fill = prepost), alpha = 0.35) +
 ```
 
 
-* Fines computed in USD: As fines are dependend on the number of violations, we see similar decline in distribution of fines owed after the enforcement. As fines have a very skewed distribution, visually the histogram is hard to review, hence we computer a square root to see the distribution better. We see see that missions have been fined a lot more before enforcement of fines however after the enforcement the missions have dramatically reduced fines owed.
+* Fines computed in USD (column : fines) 
 
-```{r echo=FALSE, results = 'asis', fig.align= 'center', fig.height= 4, fig.width= 8}
+As fines are dependend on the number of violations, we see similar decline in distribution of fines owed after the enforcement. As fines have a very skewed distribution, visually the histogram is hard to review, hence we computer a square root to see the distribution better. We see see that missions have been fined a lot more before enforcement of fines however after the enforcement the missions have dramatically reduced fines owed.
+
+```{r results = 'asis', fig.align= 'center', fig.height= 2, fig.width= 4}
 
 #compute the mean of pre and post fines
 v_mean <- tb_un_clean %>%
@@ -311,68 +325,75 @@ v + geom_density(aes(fill = prepost), alpha = 0.35) +
 
 ```
 
-* Diplomatic mission details 
+* Diplomatic mission details (columns : staff, spouse)
   + Total number of diplomats(from each country) - Majority of missions have under 20 diplomats.
-  + total number of family members - Most missions have under 20 family members.
 
-```{r echo=FALSE, results = 'asis', fig.align= 'center', fig.height= 4, fig.width= 2}
+
+```{r results = 'asis', fig.align= 'center', fig.height= 1, fig.width= 4}
 
 # Using ggplot object to plot staffing and family distribution
 
-ggplot(tb_un_clean,aes(x = factor(1), y = staff)) + 
+g_staff <- ggplot(tb_un_clean,aes(x = factor(1), y = staff)) + 
   geom_boxplot(width = 0.6, fill = "grey") +
   scale_color_manual(values = c("#00AFBB", "#E7B800")) + 
   labs(x = NULL)
 
+g_staff + coord_flip()
 
 
 ```
-
-```{r echo=FALSE, results = 'asis', fig.align= 'center', fig.height= 4, fig.width= 2}
+  + total number of family members - Most missions have under 20 family members.
+```{r results = 'asis', fig.align= 'center', fig.height= 1, fig.width= 4}
 
 # Using ggplot object to plot family distribution
 
-ggplot(tb_un_clean,aes(x = factor(1), y = spouse)) + 
+g_sp <- ggplot(tb_un_clean,aes(x = factor(1), y = spouse)) + 
   geom_boxplot(width = 0.6, fill = "grey") +
   scale_color_manual(values = c("#00AFBB", "#E7B800")) + 
   labs(x = NULL)
 
-
+g_sp + coord_flip()
 
 ```
   
-* Government wages index : Here we notice a most diplomats getting paid within 2-4 times the GDP of their country. We have to keep in mind that this index by itself is not helpful as GDP varis a lot by country. Also we decided to remove this field from our analysis as this has over 180 NA values. *We notice that government diplomat compensation varies a lot, from 10% to over 1100% of the GDP. The mean is 280%. Not all nations have a similar cost of living as does the US, so this major disparity between GDP and government diplomat wages is noteworthy. We will further evaluate this in this project.*
-```{r echo=FALSE, results = 'asis', fig.align= 'center', fig.height= 4, fig.width= 2}
+* Government wages index (column : gov_wage_gdp)
+Here we notice a most diplomats getting paid within 2-4 times the GDP of their country. We have to keep in mind that this index by itself is not helpful as GDP varis a lot by country. Also we decided to remove this field from our analysis as this has over 180 NA values. 
+
+*We notice that government diplomat compensation varies a lot, from 10% to over 1100% of the GDP. The mean is 280%. Not all nations have a similar cost of living as does the US, so this major disparity between GDP and government diplomat wages is noteworthy. We will further evaluate this in this project.*
+
+```{r results = 'asis', fig.align= 'center', fig.height= 1, fig.width= 4}
 
 # Using ggplot object to plot wage index distribution
-summary(tb_un$gov_wage_gdp)
-ggplot(tb_un,aes(x = factor(1), y = gov_wage_gdp)) + 
+g_wg <- ggplot(tb_un,aes(x = factor(1), y = gov_wage_gdp)) + 
   geom_boxplot(width = 0.6, fill = "grey") +
   scale_color_manual(values = c("#00AFBB", "#E7B800")) + 
   labs(x = NULL)
 
+g_wg + coord_flip()
 
 
 ```
-* Individual country corruption index : -2.5 to a maximum of 1.5. We know this is a composite index where a higher number means more corruption.
+* Individual country corruption index (column :  corruption)
 
-```{r echo=FALSE, results = 'asis', fig.align= 'center', fig.height= 4, fig.width= 2}
+We find this is a composite index that comprises of several underlying factors. This type of a variable -2.5 to a maximum of 1.5. We know this is a composite index where a higher number means more corruption. However, we don't understand the negative numbers. We address our concerns below in our summary table.
+
+```{r results = 'asis', fig.align= 'center', fig.height= 1, fig.width= 4}
 
 # Using ggplot object to plot corruption index distribution
 
-ggplot(tb_un_clean,aes(x = factor(1), y = corruption)) + 
+co <-ggplot(tb_un_clean,aes(x = factor(1), y = corruption)) + 
   geom_boxplot(width = 0.6, fill = "grey") +
   scale_color_manual(values = c("#00AFBB", "#E7B800")) + 
   labs(x = NULL)
 
-
+co + coord_flip()
 
 ```
 * Proportion of Muslim population
   + Percentage of Muslim population - We see in the 2 histograms the distribution. The first has all nations where we see over 150 nations with a 0. Hence we build a second histogram with at least 20% population muslim. This view shows us the distribution of over 75 nations with at least 60% muslim population.
   + Majority Muslim population - this is a boolean 0 or 1 flag to indicate majority are muslim.
   
-```{r}
+```{r results = 'asis', fig.show= 'hold',fig.align= 'center', fig.height= 3, fig.width= 3}
 hist(select(tb_un,pctmuslim), breaks = 0:1 - .01, main = "Percentage of Muslim Population", 
      xlab = NULL)
 hist(select(filter(tb_un,pctmuslim > 0.2),pctmuslim), breaks = 0:1 - .01, main = "At least 20% of population is Muslim ", 
@@ -382,7 +403,7 @@ hist(select(filter(tb_un,pctmuslim > 0.2),pctmuslim), breaks = 0:1 - .01, main =
   
 * Trade with the US: the trade relationships have a massive range from less than 100000 to several billions.
 
-```{r echo=FALSE, results = 'asis', fig.align= 'center', fig.height= 4, fig.width= 2}
+```{r trade}
 summary(tb_un_clean$trade)
 ```
 
@@ -390,7 +411,7 @@ summary(tb_un_clean$trade)
   + Total number of cars 
   + Breakdown of person and official cars
 
-```{r echo=FALSE, results = 'asis', fig.align= 'center', fig.height= 4, fig.width= 2}
+```{r cars}
 print('Personal cars')
 summary(tb_un$cars_personal)
 print('Mission cars')
@@ -400,24 +421,26 @@ summary(tb_un$cars_total)
 ```
 * Population of Country (as of 1998) : We find a large range here from population into just under half a million to over billion people.
 
-```{r echo=FALSE, results = 'asis', fig.align= 'center', fig.height= 4, fig.width= 2}
+```{r population}
 summary(tb_un_clean$pop1998)
 ```
 
 **remove duplicates due to pre/post**
 * GDP of country (as of 1998) : We notice here extremely poor nations with the lowest GDP as 95, a mean of about 5000 and as high as 36485. *We notice here too a huge disparity between nations. At the lowest end we see a GDP of only 95, average of 5236 and maximum of 36485. To equalize this a bit, we will compute a total compensation using the wage index by multiplying wage index to gdp, which together will give us a sense of total compensation. This allows us to use the variable better as the index while very useful does not help us understand the poverty or wealth of nations and their diplomats income.*
-```{r echo=FALSE, results = 'asis', fig.align= 'center', fig.height= 4, fig.width= 2}
+```{r results = 'asis'}
 summary(tb_un_clean$gdppcus1998)
-kable(select(arrange(tb_un_clean,gdppcus1998),gdppcus1998,country)[1:10,], caption = "Lowest GDP")
-kable(select(arrange(tb_un_clean,desc(gdppcus1998)),gdppcus1998,country)[1:10,], caption = "Highest GDP")
+kable(select(arrange(filter(tb_un_clean,prepost =="pre"),gdppcus1998),gdppcus1998,country)[1:10,], caption = "Lowest GDP")
+kable(select(arrange(filter(tb_un_clean,prepost =="pre"),desc(gdppcus1998)),gdppcus1998,country)[1:10,], caption = "Highest GDP")
 
 ```
+
+
 * Aid to country : 
   + military : We notice that aid to have a massive range, while the mean is relatively small at 0.2 million, we find nations receiving no aid, over 75% of military aid walls below 0.775 million.
   + economic : Here we see the mean at 49 million and about 75% of aid below 40 million. There are some nations reseiving very high amount of economic aid at 1026 million(to Columbia)
   + total US aid : Here we find 75% of all aid below 42 million with the highest aid to Israel, Egypt and Colombo.
 
-```{r echo=FALSE, results = 'asis', fig.align= 'center', fig.height= 4, fig.width= 2}
+```{r results = 'asis'}
 print("Economic aid")
 summary(tb_un_clean$ecaid)
 
@@ -432,6 +455,30 @@ summary(tb_un_clean$totaid)
 ```
 *Index variable for 'distUNplz' - Insufficiant information about this column.
 
+2.1 Anamolies 
+
+i) Violations : We found float or decimals in violations, which seemed like an error, typically a parking violation is a whole number and not given in fractions. 
+
+
+ii) Corruption index is a composite variable, meaning we don't fully understand why a country is -2 vs 0 vs 1. zero surely does not mean no corruption, -2 does not mean negetive corruption.
+
+iii) Gov wage index is a simple measure of how many times the diplomats wages are of their country's GDP. Oddly, we found a huge range here, which is a function of the huge range of GDP. As we have over half of the dataset blank for this index, we unfortunately decided to not use this variable.
+
+
+vi) One variable we could not understand is distUNplz : This also looks like an index, we could not extrapolate what this means, and as is did not find a significant correlation to violations. As we don't know what this could be made up of and we found almost no correlation, we have put this variable aside in the lack of more information.
+
+
+2.2 Coding issues, Erroneous values
+
+
+
+i) Missing (Na, blanks) : We found rows for country code, prepost, violations, country to have blanks. We have a very small dataset, with summary values for each country with means where we have blanks we don't have a way to know which country we are looking at. Hence we had to remove these rows.
+
+ii) Aid is in millions, we can safely assume, however we have population as an exact total number. We decided to convert population also in millions.
+
+iii) Boolean variables : There are five variables to denote the continental location of countries. We decided to not use these as they confuse our correlation computation. We decided to use the region which has values 1-7 for each continent. This seemed to be consist.
+
+iv) We have a redundant variable for country name and codes. We kep these but this simply took up space in the dataset. In a much larger dataset, we may have to choose to just use the code and save space/memory.
 
 
 **This section needs clarification, modification of variables to improve relationships**
@@ -493,7 +540,7 @@ Specific questions we have identified for exploration:  ** Need to filter respon
 
 ```{r echo=FALSE, results = 'asis', fig.align= 'center', fig.height= 3, fig.width= 4}
 tib_computed_pre = dplyr::select(filter(computed, prepost == "pre"),-prepost,-country,-region,-milaid,-ecaid,-pop_mil)
-kable(correlate(tib_computed_pre)[1:5,], caption = "Correlation - Pre 2002")
+kable(corrr::correlate(tib_computed_pre)[1:5,], caption = "Correlation - Pre 2002")
 ggplot(tib_computed_pre, aes(corruption, avg_viols)) + geom_point(shape = 16, size = 5) + theme_minimal()
 ggplot(tib_computed_pre, aes(totaid, avg_viols)) + geom_point(shape = 16, size = 5) + theme_minimal()
 ggplot(tib_computed_pre, aes(gdp_1000s, avg_viols)) + geom_point(shape = 16, size = 5) + theme_minimal()
