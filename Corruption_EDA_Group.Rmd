@@ -2,14 +2,16 @@
 title: "An Exploratory Analysis of Corruption and Parking Violations"
 author: "Kenneth Chen, Shiraz Chakraverty, Praba Santhanakrishnan"
 date: "May 28, 2018"
-output: 
-  pdf_document: default
-  df_print: paged
-  fig_width: 3
-  fig_height: 3
+output:
+  html_document:
+    df_print: paged
   fig_caption: yes
-  toc: yes
+  fig_height: 3
+  fig_width: 3
+  df_print: paged
   include_graphics: yes
+  pdf_document: default
+  toc: yes
 ---
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE,fig.width=4, fig.height=3)
@@ -20,7 +22,7 @@ library(Hmisc)
 library(tidyverse)
 library(dbplyr)
 library(knitr)
-library(corrr)
+library(corrplot)
 library(ggplot2)
 library(tinytex)
 ```
@@ -551,17 +553,7 @@ ggplot(country_base, aes(x = regions, y = sum_violations)) +
 ```
 
 
-
-### **Results -- Need to rewrite this section**
-
-*notes: We find two major themes here: 1) the diplomatic culture of corruption continued unchecked unti the enforcement in october 2002. 2) *
-
-Upon checking the violations Vs corruption based on corruption index centered at '0', we observed that corruption is relevant in predicting the parking violation when the index is below 0 as indicated by our correlation value at 
-
-XX. However observation above the corruption index of "1"", we do not observe a strong relationship between the corruption and the parking violations as indicated by the negative value XX . This somehow indicates that we need to further fine tune our data analysis with more variables in investigation of corruption index and parking violations. 
-
-
-## (b) How does the number of diplomats contribute to the frequency of violations?  
+## (b) How does the number of diplomats contribute to the frequency of violations and which country diplomat offended the most parking violations?  
 
 As we observe that there are countries with the total number of diplomats at `r format(round(max(FMcorrupt$staff), 2))`, we are interested in the average number of parking violations per individual diplomats. In order to do so, we divided the violations variable by the staff number in each country. However as there are some missing value in these two variables, we first created a subdata which do not have a missing value in two critical variables, i.e., violations and staff. 
 
@@ -590,7 +582,10 @@ To our surprise, violations of Kuwait pre and post 2002 was astonashing. Its pre
 
 ### Results
 
-The number of staff does not correlate with the frequency of parking violations in New York Manhattan. Investigation of the average number of violations per diplomats clarified our previous findings that the number of diplomats did not matter. Some countries diplomat committed parking violations as high as `r max_vio`, which rather suggested other underlying causes for such a high frequency per diplomat. 
+Upon thoroughly checking the data given, we came to a conclusion that parking violations in Manhattan New York did not have any relationship with the majority of the variables in the dataset such as staff, spouse, pctmuslim (muslim population), ecaid, milaid (economic and military aid) so on and so forth. However, we found a linear relationship between the number of parking violations and the corruption of the country indicated by the index. The correlation between these two variables (violations Vs corruption) before 2002 was 0.183 (pre) and became 0.211 after 2002 (pos). 
+
+Another strong relationship between these two variables was confirmed after we investigated the top 25 offending countries: Kuwait, Egypt, Chad, Sudan, etc pre and pos 2002 situation. Considering the fact that World Trade Center attack happened in the US and corruption of the country belongs to those corresponding countries, we expect to see these two physical locations as two separate variables. However the fact that a significant drop of the parking violations from those top offending countries pre and pos 2002 showed the otherwise. Our data analysis therefore showed that there were some relationship between top offending countries and WTC attack in terms of political climate, social stigma and strong aversion to those countries after WTC attack on 2001 in the US and law enforcement in New York after 2001. 
+
 
 ## Bibliography and R packages used in this project
 
