@@ -1,5 +1,5 @@
 ---
-title: "An Exploratory Analysis of Corruption and Parking Violations"
+title: "W203 Lab1: EDA of Parking Violations at the UN"
 author: "Kenneth Chen, Shiraz Chakraverty, Praba Santhanakrishnan"
 date: "May 28, 2018"
 output: 
@@ -23,6 +23,7 @@ library(ggplot2)
 library(tinytex)
 library(corrr)
 library(formatR)
+library(gridExtra)
 
 # Set display tags for chunks to wrap around the text box
 knitr::opts_chunk$set(echo = TRUE,tidy.opts=list(width.cutoff=60),tidy=TRUE)
@@ -37,13 +38,13 @@ In this lab assignment, we have access to a unique social experiment to understa
 
 i. Every region and country has some form of corruption, a prevailing diplomatic relationship with the UN and by extention, The United States.*
 
-ii. Diplomatic attitudes are tuned into the following:*  
+ii. Diplomatic attitudes are tuned into the following: 
 
    * Economic development of nation. 
    
-   * Current world events, how they effect their nation.*  
+   * Current world events, how they effect their nation.  
    
-   * Level of crime in nation*  
+   * Level of crime in nation
    
    * Population of nation, per capita income and crime index.
    
@@ -197,11 +198,9 @@ We performed the following modifications to make the data more uniform. Here are
 # Create calculated fields using tidyverse functions, round floats.
 tb_un_revised = dplyr::select(mutate(tb_un_clean, corruption = round(corruption,2), avg_viols = round((violations / staff),0), trade_mil = round((trade/1000000),0), pop_mil = round((pop1998/1000000),0),gdp_1000s = round((gdppcus1998/1000),2)),everything())
 
-# Create a base tibble with all analysis fields
-computed = select(tb_un_revised,country,region,prepost,corruption,totaid,ecaid,milaid,avg_viols,trade_mil,pop_mil,gdp_1000s)
 
 #Create a table view only tibble to show the computed fields with country reference.
-tib_view = dplyr::select(computed,country,corruption,avg_viols,totaid,ecaid,trade_mil,pop_mil,gdp_1000s)
+tib_view = dplyr::select(tb_un_revised,country,corruption,avg_viols,totaid,ecaid,trade_mil,pop_mil,gdp_1000s)
 
 # create a nicely formatted markdown table, show first 10 rows and all columns
 kable(head(tib_view[1:10,]), caption = "Sample of revised fields")
@@ -425,7 +424,6 @@ summary(tb_un$cars_total)
 summary(tb_un_clean$pop1998)
 ```
 
-**remove duplicates due to pre/post**
 * GDP of country (as of 1998) : We notice here extremely poor nations with the lowest GDP as 95, a mean of about 5000 and as high as 36485. *We notice here too a huge disparity between nations. At the lowest end we see a GDP of only 95, average of 5236 and maximum of 36485. To equalize this a bit, we will compute a total compensation using the wage index by multiplying wage index to gdp, which together will give us a sense of total compensation. This allows us to use the variable better as the index while very useful does not help us understand the poverty or wealth of nations and their diplomats income.*
 ```{r results = 'asis'}
 summary(tb_un_clean$gdppcus1998)
@@ -481,14 +479,19 @@ iii) Boolean variables : There are five variables to denote the continental loca
 iv) We have a redundant variable for country name and codes. We kep these but this simply took up space in the dataset. In a much larger dataset, we may have to choose to just use the code and save space/memory.
 
 
-**This section needs clarification, modification of variables to improve relationships**
-## Analysis of key relationships
+## 3. Analysis of key relationships
 
-** USE ME    Our first step is preliminary check across all key variables such as violations, staff and corruption. Interestingly, we found that there is no immediate evidence that the more the number of diplomats, the higher the violations. Most of the violations appears clustered at the lower bounds of the staff number between 0 and 20. However we observed an interesting pattern between violations and corruption. The more corrupt the country is, i.e., indicated by the corruption index, the more likely we would see the violation events. **
+We did a quick scatter plot matrix to identify interesting relationshis we want to explore. We make few key association that interested us as following, 
 
 
-```{r echo=FALSE, results = 'asis', fig.align= 'center', fig.height= 10, fig.width= 10}
-car::scatterplotMatrix(~ violations + spouse + trade + ecaid + milaid + totaid + gdppcus1998, data=tb_un_clean, diagonal = list(method='histogram'), main = "Scatterplot Matrix for key variables")
+
+
+```{r results = 'asis', fig.align= 'center', fig.height= 10, fig.width= 10}
+
+tib_computed_pre = dplyr::select(filter(tb_un_revised, prepost == "pre"),avg_viols,corruption, pctmuslim,region,staff,gdp_1000s)
+kable(corrr::correlate(tib_computed_pre)[1:7,], caption = "Correlation - Pre 2002")
+
+car::scatterplotMatrix(~ avg_viols + corruption + pctmuslim + staff + gdp_1000s, data=tb_un_revised, diagonal = list(method='histogram'), main = "Scatterplot Matrix for key variables")
 ```
 
 
@@ -501,72 +504,89 @@ car::scatterplotMatrix(~ violations + spouse + trade + ecaid + milaid + totaid +
 
 
 
+### 3.1 Key Relationships
+
+i)   Violations relationship to Corruption and Percent muslim. Violations do not seem to have a strong correlation to corruption index. More perceptage of muslim population seems to increase the violations. We discuss this more in statistical terms below.
 
 
+```{r results = 'asis', fig.align= 'center', fig.height= 4, fig.width= 8}
+
+plot1 <- ggplot(tib_computed_pre, aes(corruption, avg_viols)) + geom_point(shape = 16, size = 5) + theme_minimal()
+plot2 <- ggplot(tib_computed_pre, aes(pctmuslim, avg_viols)) + geom_point(shape = 16, size = 5) + theme_minimal()
+
+grid.arrange(plot1, plot2, ncol=2)
+
+```
+
+Looking at the two plots we can see that corruption index which seems to be a central data element here does not show a strong relationship to violations.
 
 
-```{r echo=FALSE, results = 'asis', fig.align= 'center', fig.height= 10, fig.width= 10}
-car::scatterplotMatrix(~ violations + staff + corruption + pctmuslim + pop1998 + gdppcus1998 +region, data=tb_un_clean, diagonal = list(method='histogram'), main = "Scatterplot Matrix for key variables")
+ii)  Corruption 
+
+There seems to be a strong relationship with Percent muslim, Staff, GDP.
+
+Corruption seems to increase with increased percent muslim, which also contributes to violations. We also see more staffers increasing corruption and countries with higher GDP seem to have significantly lower corruption index values. This leads us to wonder if this has to do with sentiments towards the United states within predominantly muslim nations. 
+
+Also missions with more staff seem to have lower corruption, we wonder if this is due to a 'peer effect' where diplomats act more responsibly as a result of a larger team in the US that has a higher risk of exposure if they engage in small acts of unlawful actions and get caught. 
+
+GDP also seems to negetively effect corruption, makes us think if perhaps a country with higher GDP perhaps means better governance which may cause a lower corruption index aggregae value.
+        
+
+```{r results = 'asis', fig.align= 'center', fig.height= 2, fig.width= 8}
+
+plot3 <- ggplot(tib_computed_pre, aes(staff, corruption)) + geom_point(shape = 16, size = 5) + theme_minimal()
+plot4 <- ggplot(tib_computed_pre, aes(pctmuslim, corruption)) + geom_point(shape = 16, size = 5) + theme_minimal()
+
+
+grid.arrange(plot3, plot4, ncol=2)
+
+ggplot(tib_computed_pre, aes(gdp_1000s, corruption)) + geom_point(shape = 16, size = 5) + theme_minimal()
+
 ```
 
 
-Specific questions we have identified for exploration:  ** Need to filter responses and fill this one**
 
-*(a) Was there a relationship between corruption and parking violations?* Y
 
-*(b) How does the number of diplomats contribute to the frequency of violations?*  Nothing
+iii) GDP relationship to Staff. Higher the GDP, we notice the staff numbers also increase. This simply tells us that nations who have a higher per capita income are able to have a larger mission size at the UN.
+        
+ 
 
-*(c) Does the legislative change in October 2002 dramatically change volume of violations?*  Yes, show table and graph
+```{r results = 'asis', fig.align= 'center', fig.height= 2, fig.width= 4}
 
-*(d) Does the ranking of corruption index (descending order) show a relationship to the volume of parking violations(per diplomat)?*  -revise table 11 and add corruption to show this, there is a relation here.
-
-*(e) Does the level of aid to the country or trade with country show relationship to the volume of parking violations(per diplomat)*  -No, refer to correlation absence
-
-*(f) Does the country gdp, diplomat wage have a relationship to corruption index? i.e. what could have a statistical correlation to a culture of engaging in negligent acts of corruption.* - Yes there is, refer to scatterplots
-
-*(g) Does WTC attack impact on parking violations?* - Yes. Refer to charts
-
-** DELETE ME(h) Which country have the largest diplomatic footprint, including family and is there a relationship with violations ?**
-
-** DELETE ME(i) What is the ralationship between GDP and diplomatic wage ?**
-
-** DELETE ME(j) What is the relationship between economic aid, military aid and other country data like population, GDP?* **
-
-** DELETE ME (j) Which country have more cars? If so, more cars means more staff?**
+ggplot(tib_computed_pre, aes(gdp_1000s, staff)) + geom_point(shape = 16, size = 5) + theme_minimal()
 
 
 
-**Keep the pre charts and remove post as they are influenced heavily by enforcement**
-
-```{r echo=FALSE, results = 'asis', fig.align= 'center', fig.height= 3, fig.width= 4}
-tib_computed_pre = dplyr::select(filter(computed, prepost == "pre"),-prepost,-country,-region,-milaid,-ecaid,-pop_mil)
-kable(corrr::correlate(tib_computed_pre)[1:5,], caption = "Correlation - Pre 2002")
-ggplot(tib_computed_pre, aes(corruption, avg_viols)) + geom_point(shape = 16, size = 5) + theme_minimal()
-ggplot(tib_computed_pre, aes(totaid, avg_viols)) + geom_point(shape = 16, size = 5) + theme_minimal()
-ggplot(tib_computed_pre, aes(gdp_1000s, avg_viols)) + geom_point(shape = 16, size = 5) + theme_minimal()
 ```
 
 
-```{r echo=FALSE, results = 'asis'}
-tib_computed_pos = dplyr::select(filter(computed, prepost == "pos"),-prepost, -country, -region)
-kable(correlate(tib_computed_pos)[1:10,], caption = "Correlation - Post 2002")
-ggplot(tib_computed_pre, aes(corruption, avg_viols)) + geom_point(shape = 16, size = 5) + theme_minimal()
-ggplot(tib_computed_pre, aes(totaid, avg_viols)) + geom_point(shape = 16, size = 5) + theme_minimal()
-ggplot(tib_computed_pre, aes(gdp_1000s, avg_viols)) + geom_point(shape = 16, size = 5) + theme_minimal()
-```
+Key relationship recap
+
+1. We see a 0.18 correlation with parking violations. Given that our data is highly summarised and does not represent raw data, we are inclined to consider that only percent of muslims has a strong effect on violations and not the corruption index.
+
+2. We see that percentage of muslim variable has a 0.30 correlation with violations and we see this as a stronger correlation that corruption index.
+
+3. Corruption has a 0.27 correlation with percent of muslim variable, -0.25 with staff and -.86 with GDP. These are our strongest relationships. Telling us that corruption index is really sensitive to GDP and more staffers also effect corruption index to go down. 
+
+4. We find that percent of muslim variable correlates to violations at 0.30, but also to corruption index. Leading us to think this could be a result of overall negetive sentiments towards the US or the UN by these nations and perhaps their diplomats behave with some disregard to US laws due to their antipathy towards the US. 
+
+4. We observe that the legislative change in October 2002 dramatically reduced volume of violations. Due to this major event, we decided to only look at 'cultural' paramters like corruption index, percent muslim...all before this legislation. We think the pre legislation data really represents the true behavior and post enforcement we find the behaviors to be dramatically different.
 
 
-##Analysis of Secondary Effects (10 pts)
-What secondary variables might have confounding effects on the relationships you have identified? Explain how these variables affect your understanding of the data.
+### 4. Analysis of Secondary Effects (10 pts)
 
-- Show the relation here with the top 25 offenders, with corrption and violations, pre and post 9/11 explain the secondard effect of a major world event and change of US law.
-** Only show top 20 offenders and show corruption index**
+We found some confounding things in this dataset that give us pause and reason to further investigate.
+
+1) We list here as exhibit the top 25 missions that had the most parking violations. Kuwait is at the top of the list, but their corruption index is -1.07. Next, Egypt is the second highest on this list but they too have a 0.25 corruption index total. This leads us to our first major realization that  corruption index as is does not have a statistically significant relationship to violations.
+
+2) Regions variable is nominal and thus we can't correlate "regions" with "violations". But there are visibly large magnitude of violations in two regions here. We cannot explain why this is the case. Is this simply a by product of more nations in a certain region, or more total staff due to having more nations. These remain unexplainable from the dataset.
+
 
 EXAMPLE 1
 
-```{r echo=FALSE, results = 'asis'}
+```{r results = 'asis'}
 computed_full = subset(tb_un_revised, select = c(country,region,prepost,corruption,ecaid,milaid,violations,avg_viols,trade_mil,pop_mil,gdp_1000s))
-com1 = select(mutate(filter(computed_full,prepost =="pre"), country = country, pre_2002_violations = avg_viols),country, pre_2002_violations )
+com1 = select(mutate(filter(computed_full,prepost =="pre"), country = country, pre_2002_violations = avg_viols),country, pre_2002_violations,gdp_1000s,corruption )
 com2 = select(mutate(filter(computed_full,prepost =="pos"), country = country, pos_2002_violations  = avg_viols),country, pos_2002_violations )
 com_final = arrange(filter(merge(com1,com2),country !=""),desc(pre_2002_violations))
 kable(com_final[1:25,], caption = "Parking Violation side by side ( pre / post enforcement )")
@@ -575,7 +595,7 @@ kable(com_final[1:25,], caption = "Parking Violation side by side ( pre / post e
 
 
 EXAMPLE 2
-```{r echo=FALSE, results = 'asis', fig.align= 'center', fig.height= 4, fig.width= 8}
+```{r results = 'asis', fig.align= 'center', fig.height= 4, fig.width= 8}
 
 #compute the number of countries by region. This is visually more useful.
 
@@ -600,42 +620,40 @@ ggplot(country_base, aes(x = regions, y = sum_violations)) +
 ```
 
 
-## (b) How does the number of diplomats contribute to the frequency of violations and which country diplomat offended the most parking violations?  
 
-As we observe that there are countries with the total number of diplomats at `r format(round(max(FMcorrupt$staff), 2))`, we are interested in the average number of parking violations per individual diplomats. In order to do so, we divided the violations variable by the staff number in each country. However as there are some missing value in these two variables, we first created a subdata which do not have a missing value in two critical variables, i.e., violations and staff. 
+### 5. Final Summary
 
-```{r}
-subcases_per_dip = ! is.na(FMcorrupt$violations) & ! is.na(FMcorrupt$staff)
-FM_subcases_per_dip = FMcorrupt[subcases_per_dip, ]
-FM_subcases_per_dip$vpd = (FM_subcases_per_dip$violations/FM_subcases_per_dip$staff)
-summary(FM_subcases_per_dip)
-min_vio = format(round(min(FM_subcases_per_dip$vpd), 2))
-max_vio = format(round(max(FM_subcases_per_dip$vpd), 2))
-```
+We had started with this construct that every region and country has some form of corruption, a prevailing diplomatic relationship with the UN and by extention, The United States. Upon thoroughly checking the data given, we came to a conclusion that parking violations in Manhattan New York did not have any relationship with the majority of the variables in the dataset except pctmuslim (muslim population). 
 
-Interestingly we found that violations per diplomat ranges from `r min_vio` to `r max_vio` which further confirms our previous analysis that the number of staff does not correlate to the number of violations. It would otherwise indicate that the average violation would be similar across the countries. 
+We find however that the corruption index has a strong relationship to GDP, percentage of muslims in nation and this gives us pause, is this an indication of attitutes towards the US and UN based on how foriegn policy effecs these regions of the world.
 
-```{r calling the most violations country}
-FM_subcases_per_dip$country[FM_subcases_per_dip$vpd == max(FM_subcases_per_dip$vpd)]
-```
+We further wanted to explore how diplomatic attitudes are tuned into economic development of nation & Level of crime in respective nations. We found the corruption index to have a very strong relationship with GDP and also with number of staff and finally percent of muslims in that nation. 
 
-We found that the country that commited more parking violations in Manhattan NY was Kuwait with an outstanding violations of 249 violations per diplomats. We further investigated the variables for Kuwait.
+We find a linear relationship between the corruption index and GDP at a correlation of -0.86. We do not find corruption to have a strong linear relathinship to violations from this dataset. 
+   
+We wanted to understand the effects of the current world events, how they effect attitudes of the diplomats. we found a strong effect as observed in reduction of violations irrespective of the corruption index. We notice an across the chart decline in violations by the top 25 offending countries: Kuwait, Egypt, Chad, Sudan - after the enforcement and in fact 13 months after World Trade Center terrorist attacks. We think this is due to diplomats finally coming outside their umbrella of immunity when it comes to parking violations.  
+   
+Finally we find our most interesting relationships, Per capita income and crime index. We note here that Kuwait has a  -1.07 corruption index, that is low on corruption scale, yet very high violations before enforcement. Kuwait is a oil rich country with a very high GDP, compared to Egypt, Chad and Sudan who have a GDP that is 20 times smaller than Kuwait have a corruption index that is greater than zero, yet much lower violations than Kuwait. This informs us that the index does not effect violations and diplomats from poor nations are not nessasarity displaying a culture of corruption.
 
-```{r}
-FM_subcases_per_dip[FM_subcases_per_dip$country=="KUWAIT", ]
-```
+In other words, some countries do fit the profile of the conventional thinking that lower GDP nations have a poorer law and order environment. But, we don't see a linear relationship of diplomats from poor nations with a higher corruption index engaging in more violations, i.e. they do not show a higher rate of violations. 
 
-To our surprise, violations of Kuwait pre and post 2002 was astonashing. Its pre violation stood at `r FMcorrupt$violation[FMcorrupt$country=="KUWAIT" & FMcorrupt$prepost == 'pre']` while its post violations stood at `r FMcorrupt$violations[FMcorrupt$country=="KUWAIT" & FMcorrupt$prepost == 'pos']` . The violations per diplomat therefore significantly reduced from `r FM_subcases_per_dip$vpd[FM_subcases_per_dip$country=="KUWAIT" & FM_subcases_per_dip$prepost=='pre']` to `r FM_subcases_per_dip$vpd[FM_subcases_per_dip$country=="KUWAIT" & FM_subcases_per_dip$prepost=='pos']` while all other variables remains the same. 
-
-### Results
-
-Upon thoroughly checking the data given, we came to a conclusion that parking violations in Manhattan New York did not have any relationship with the majority of the variables in the dataset such as staff, spouse, pctmuslim (muslim population), ecaid, milaid (economic and military aid) so on and so forth. However, we found a linear relationship between the number of parking violations and the corruption of the country indicated by the index. The correlation between these two variables (violations Vs corruption) before 2002 was 0.183 (pre) and became 0.211 after 2002 (pos). 
-
-Another strong relationship between these two variables was confirmed after we investigated the top 25 offending countries: Kuwait, Egypt, Chad, Sudan, etc pre and pos 2002 situation. Considering the fact that World Trade Center attack happened in the US and corruption of the country belongs to those corresponding countries, we expect to see these two physical locations as two separate variables. However the fact that a significant drop of the parking violations from those top offending countries pre and pos 2002 showed the otherwise. Our data analysis therefore showed that there were some relationship between top offending countries and WTC attack in terms of political climate, social stigma and strong aversion to those countries after WTC attack on 2001 in the US and law enforcement in New York after 2001. 
-
-
-## Bibliography and R packages used in this project
+for example, We find Nigeria to not fit this 'conventional thinking' profile, as they have a much lower number of violations despite a GDP 20 times lower than Kuwait and a corruption index more than 1, still they only have 59 violations and are 15th on the top violators list. 
 
 
 
+### Bibliography & Credits
 
+1. Data Import with tidyverse and working with the results as tibbles, and reshape messy data with tidyr. 
+(link : <https://github.com/rstudio/cheatsheets/raw/master/data-import.pdf>)
+
+2. Data transformation cheatsheet where dplyr was used to change and create tables. 
+(link :<https://github.com/rstudio/cheatsheets/raw/master/data-transformation.pdf>)
+
+3. R Markdown guidance on how to knit, format, code and create awesome R markdown projects
+(link: <https://github.com/rstudio/cheatsheets/raw/master/rmarkdown-2.0.pdf>)
+
+
+4. Data visualization using ggplot2 allowed us to build some visualizations.
+(link:<https://github.com/rstudio/cheatsheets/raw/master/data-visualization-2.1.pdf>)
+
+5. Stackexchange helped us resolve over 50 issues in cleaning, categorizing data. It helped us resolve issues with coding and R markdown pitfalls.
